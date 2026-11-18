@@ -1,11 +1,13 @@
 [package]
 name = "bgo-wasm"
 description = "WebAssembly surface for the Band-Gap Observatory core."
-version.workspace = true
-edition.workspace = true
-rust-version.workspace = true
-license.workspace = true
-repository.workspace = true
+# Inlined rather than inherited: the wasm-pack used in CI parses this file
+# directly and does not resolve `workspace = true` for these fields.
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.82"
+license = "MIT"
+repository = "https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere"
 publish = false
 
 [lib]
