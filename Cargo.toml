@@ -21,13 +21,6 @@ repository = "https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere"
 
 [workspace.dependencies]
 bgo-physics = { path = "crates/bgo-physics" }
-bgo-ad = { path = "crates/bgo-ad" }
-bgo-infer = { path = "crates/bgo-infer" }
-bgo-info = { path = "crates/bgo-info" }
-bgo-ot = { path = "crates/bgo-ot" }
-bgo-ssm = { path = "crates/bgo-ssm" }
-bgo-nn = { path = "crates/bgo-nn" }
-bgo-epm = { path = "crates/bgo-epm" }
 
 [profile.release]
 opt-level = "z"

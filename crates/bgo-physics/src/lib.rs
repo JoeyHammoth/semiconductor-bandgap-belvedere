@@ -43,7 +43,7 @@ pub fn ev_to_joules(ev: f64) -> f64 {
 
 /// Convert a photon energy in electronvolts to a wavelength in nanometres.
 pub fn energy_to_wavelength_nm(ev: f64) -> f64 {
-    1239.841_984 / ev
+    1_239.841_984 / ev
 }
 
 /// Varshni gap `E_g(T) = E_g(0) - alpha*T^2/(T+beta)` in eV.
