@@ -5,7 +5,7 @@ Eight phases, each with acceptance criteria recorded as a GitHub epic. Milestone
 | Phase | Week | Ships | Epic | Milestone |
 |---|---|---|---|---|
 | 0 — Walking skeleton | 1 | repo, CI/CD, Pages, design tokens, data provenance audit | [#1](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/1) | Phase 0 |
-| 1 — Physics, AD, sampler, hero | 2 | `bgo-physics`, `bgo-ad`, MCLMC, S0, S1 | [#2](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/2) | Phase 1 |
+| 1 — Physics, AD, simulation-first sampler and hero | 2 | `bgo-physics`, `bgo-ad`, synthetic M0–M4 references, MCLMC, S0, S1 | [#2](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/2) | Phase 1 |
 | 2 — Evidence, sloppiness, swarm | 3 | nested sampling, Fisher, S2, S3, S4, S10 | [#3](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/3) | Phase 2 |
 | 3 — Amortised inference and MVP | 4 | NPE engine, calibration, PWA, v0.1.0 | [#4](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/4) | Phase 3 |
 | 4 — Thermal twin | 5 | UKF/RTS, GP discrepancy, DMDc, S6 | [#5](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/5) | Phase 4 |
@@ -25,11 +25,22 @@ Eight phases, each with acceptance criteria recorded as a GitHub epic. Milestone
 | Quality gates: axe, Lighthouse, budgets | [#14](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/14) |
 | Audit report Table 1 arithmetic; reproduction unavailable | [#15](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/15) |
 
+## Phase 1 tasks
+
+| Task | Issue |
+|---|---|
+| Physics core: diode, gap models, Lambert W and colour | [#23](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/23) |
+| Automatic differentiation: dual and hyper-dual numbers | [#24](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/24) |
+| Simulation and NumPyro reference: synthetic M0–M4 datasets | [#25](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/25) |
+| MCLMC and diagnostics: sampler, R-hat, ESS and energy error | [#26](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/26) |
+| Infer view and simulation-labelled S0/S1 scenes | [#27](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/27) |
+
 ## Sequencing rules
 
 - The physics audit gates public copy, not scaffolding.
 - The physics audit and the report-arithmetic audit gate every public claim about `E_g`. No raw-data claim is made while the original recordings are lost.
 - The original logs no longer exist; #10 and #15 were re-scoped under [ADR 0006](adr/0006-no-recorded-dataset.md).
+- Phase 1 is simulation-first: synthetic M0–M4 datasets, committed configs and seeds, and NumPyro golden posteriors. Report-anchored cases are labelled synthetic; no real-data comparison is made.
 - Phase 4 can start before Phase 3 finishes, but the MVP (Phase 3) is what gets released first.
 - Stretch items (KPM alloy, symbolic regression) are droppable without affecting the story.
 

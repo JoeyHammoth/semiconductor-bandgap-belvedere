@@ -30,12 +30,14 @@ Table 1 intercept reproduction is not pending: it is **unavailable**. No authent
 
 | Claim | Test | Tolerance | Status |
 |---|---|---|---|
-| MCLMC matches NUTS on M0–M4 | golden posteriors from NumPyro (`refs.yml`) | mean ≤ 0.05 σ, sd ≤ 0.10 σ, max correlation difference ≤ 0.10 | pending |
+| MCLMC matches NUTS on simulated M0–M4 | golden posteriors from NumPyro for committed synthetic configs and seeds (`refs.yml`) | mean ≤ 0.05 σ, sd ≤ 0.10 σ, max correlation difference ≤ 0.10 | pending |
 | Coverage is nominal | 200+ simulated replications | 95% interval covers in 93–97% | pending |
 | Nested sampling `ln Z` is correct | closed-form Gaussian evidence | ≤ 0.2 nats | pending |
 | Nested sampling agrees with `dynesty` | simulated data, committed dynesty output | ≤ 0.3 nats | pending |
 | Replicate scatter matches theory | several independent runs | observed sd within 2× of `sqrt(H/N)` | pending |
 | Diagnostics are honest | deliberately broken chains | R-hat/ESS flags fail the converged badge | pending |
+
+Phase 1 validation is simulation-only. The original recordings were lost (ADR 0006), so report-anchored synthetic cases are labelled and are not a real-data comparison.
 
 ## 4. Sloppiness and information geometry
 
