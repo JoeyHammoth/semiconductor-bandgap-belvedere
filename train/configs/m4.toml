@@ -1,0 +1,30 @@
+schema_version = 1
+case_id = "m4"
+model = "M4"
+synthetic = true
+seed = 20261123
+description = "Synthetic M4 case in an extended window, adding series resistance to M3."
+
+[anchor]
+kind = "physics-audit"
+source = "docs/physics-audit.md sections 2 and 9"
+label = "synthetic"
+note = "The series resistance is a simulation fixture in a simulated 220-383 K window; eta is fixed at 3.0 because one constant-current sweep cannot separate it from ideality."
+
+[data]
+current_a = 0.0003
+temperature_start_k = 220.0
+temperature_stop_k = 383.15
+points = 41
+
+[noise]
+voltage_sigma_v = 0.00012
+adc_lsb_v = 0.000125
+
+[truth]
+eg0_ev = 1.1557
+ln_b = -6.200414441
+alpha_ev_per_k = 0.0007021
+beta_k = 1108.0
+ideality = 1.05
+series_resistance_ohm = 8.0

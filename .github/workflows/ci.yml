@@ -32,6 +32,28 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
 
+  python:
+    name: python
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: train
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.11.18"
+      - run: uv sync --locked --extra dev
+      - name: Simulation and reference tests
+        run: uv run pytest
+      - name: Lint
+        run: uv run ruff check src tests
+      - name: Reference manifest check
+        run: uv run python -m bgo_train.reference --check
+
   web:
     name: web
     runs-on: ubuntu-latest

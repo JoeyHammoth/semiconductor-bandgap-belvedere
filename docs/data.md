@@ -36,6 +36,8 @@ data/
 
 There are no raw or clean runs, and `data/manifest.json` has an empty `files` map. The validator and schema remain useful only as a gate for authentic data that might surface later.
 
+Synthetic observations and NumPyro reference summaries live under [`train/references/`](../train/references/) and are explicitly outside the `data/` slots. Their manifest records config and seed hashes, not a data hash, and every case and anchor is labelled synthetic.
+
 ## 4. Run contract for a future recovery
 
 If original logs are ever recovered, each run must provide:

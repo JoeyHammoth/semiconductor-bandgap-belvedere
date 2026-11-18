@@ -1,0 +1,27 @@
+schema_version = 1
+case_id = "m0-report-si"
+model = "M0"
+synthetic = true
+seed = 20261118
+description = "Report-summary-anchored M0 case for Si; all observations are synthetic."
+
+[anchor]
+kind = "report-summary"
+source = "PHYC30021 report, Table 1, Si intercept"
+label = "synthetic"
+value_ev = 1.002
+note = "The anchor is a quoted summary value, not a recovered measurement or a Table 1 reproduction."
+
+[data]
+current_a = 0.0003
+temperature_start_k = 293.15
+temperature_stop_k = 383.15
+points = 41
+
+[noise]
+voltage_sigma_v = 0.00012
+adc_lsb_v = 0.000125
+
+[truth]
+eg_ev = 1.002
+ln_b = 5.504239846

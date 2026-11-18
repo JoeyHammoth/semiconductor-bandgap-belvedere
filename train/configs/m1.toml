@@ -1,0 +1,27 @@
+schema_version = 1
+case_id = "m1"
+model = "M1"
+synthetic = true
+seed = 20261120
+description = "Synthetic M1 case in an extended window with a temperature-dependent prefactor; eta is illustrative."
+
+[anchor]
+kind = "physics-audit"
+source = "docs/physics-audit.md section 9"
+label = "synthetic"
+note = "eta = 3 is illustrative. The 220-383 K window is simulated, not a lab measurement, and improves slope identifiability."
+
+[data]
+current_a = 0.0003
+temperature_start_k = 220.0
+temperature_stop_k = 383.15
+points = 41
+
+[noise]
+voltage_sigma_v = 0.00012
+adc_lsb_v = 0.000125
+
+[truth]
+eg_ev = 1.002
+ln_b = -11.607107578
+eta = 3.0

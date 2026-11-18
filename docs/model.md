@@ -69,6 +69,8 @@ The two are alternatives, not nested. `M2` and `M2b` are compared by evidence an
 
 Every variant shares the same data, likelihood and prior construction so that evidence comparisons are meaningful.
 
+Reference convention for M3/M4: with one constant-current temperature sweep, `η` and the terminal ideality `n` are nearly degenerate. The committed M3/M4 reference cases therefore hold `η` at the illustrative central value 3.0 and infer `n` (and, for M4, `R_s`); M1/M2 infer `η`. This is a stated simulation convention, not a measured constraint. A future multi-current design can free both without that degeneracy.
+
 ## 4. Instrument model
 
 - **ADC (ADS1115):** signed 16-bit, `LSB = FSR / 32768` (125 µV at ±4.096 V); quantisation `σ_q = LSB/√12` plus a fitted noise floor.

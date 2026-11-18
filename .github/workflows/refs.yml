@@ -1,0 +1,71 @@
+name: reference refresh
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  references:
+    name: synthetic M0-M4 references
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: train
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.11.18"
+      - run: uv sync --locked --extra dev
+      - name: Regenerate references
+        run: uv run python -m bgo_train.reference --all
+      - name: Detect drift
+        id: drift
+        run: |
+          if git diff --quiet -- references; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff -- references > "$RUNNER_TEMP/references.diff"
+          fi
+      - name: Upload reference diff
+        if: steps.drift.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-drift
+          path: ${{ runner.temp }}/references.diff
+          retention-days: 14
+      - name: Open or update drift issue
+        if: steps.drift.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Reference refresh drift: synthetic M0-M4"
+          body="$RUNNER_TEMP/reference-issue.md"
+          {
+            echo "The scheduled NumPyro reference refresh produced a diff."
+            echo
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo
+            echo '```diff'
+            head -200 "$RUNNER_TEMP/references.diff"
+            echo '```'
+          } > "$body"
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "$title in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$body"
+          fi
+      - name: Fail on drift
+        if: steps.drift.outputs.changed == 'true'
+        run: exit 1
