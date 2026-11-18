@@ -31,6 +31,8 @@ flowchart LR
   C --> UI
 ```
 
+The raw-data path is retained for a future authentic recovery. No runs exist today, so the site uses labelled simulations and the report summary; see [ADR 0006](adr/0006-no-recorded-dataset.md).
+
 ## 2. Repository layout
 
 ```text
@@ -127,7 +129,7 @@ BASE_PATH=/semiconductor-bandgap-belvedere npm run build   # in web/
 
 1. No server, database, account system or paid API at any stage.
 2. No `SharedArrayBuffer`, no COOP/COEP requirement, no `coi-serviceworker` hacks.
-3. Every published number traces to code, a hash-pinned dataset and a commit.
+3. Every published number traces to code, a cited source or a hash-pinned dataset, and a commit.
 4. Physics lives in Rust crates, never in scene code.
 5. Datasets and weights are plain files in git, each well under 10 MB, never LFS.
 6. The public site never connects to hardware or commands an actuator.
@@ -135,4 +137,4 @@ BASE_PATH=/semiconductor-bandgap-belvedere npm run build   # in web/
 
 ## 10. Decisions
 
-See [`docs/adr/`](adr/): static site, MCLMC in the browser, hand-written flow engine, CPU band structure, worker parallelism without shared memory.
+See [`docs/adr/`](adr/): static site, MCLMC in the browser, hand-written flow engine, CPU band structure, worker parallelism without shared memory, and the lost-dataset decision.

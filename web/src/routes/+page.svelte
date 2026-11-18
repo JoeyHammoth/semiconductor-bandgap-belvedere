@@ -5,8 +5,8 @@
   import StatusBar from '../lib/ui/StatusBar.svelte';
   import { DEFAULT_STATE, decodeState, encodeState } from '../lib/state/permalink';
 
-  // Si literature Varshni set, pending the Phase 0 physics audit. Labelled as
-  // such in the UI; never presented as a verified value.
+  // Si literature Varshni set, resolved by the Phase 0 physics audit and
+  // labelled as literature in the UI; never presented as a measured value.
   const SI = { eg0: 1.1557, alpha: 7.021e-4, beta: 1108 };
 
   let pool: EnginePool | null = null;
@@ -119,9 +119,10 @@
       <p class="eyebrow">Diode thermometry · PHYC30021 · static, zero-backend</p>
       <h1 id="hero-title">How wide is the gap,<br />and how sure are we?</h1>
       <p class="lede">
-        A real, imperfect measurement of a diode's forward voltage against temperature. The lab
-        fits a straight line and calls the intercept the band gap. This instrument asks which
-        assumptions that line hides, and what the data can actually support.
+        A classic, imperfect measurement protocol: a diode's forward voltage against temperature.
+        The lab fits a straight line and calls the intercept the band gap. This instrument asks
+        which assumptions that line hides, and what the surviving report and simulations can
+        actually support.
       </p>
 
       <div class="readout panel">
@@ -205,7 +206,7 @@
         </p>
       </div>
       <table class="readout-table">
-        <caption>Report intercepts against Varshni (1967) gaps</caption>
+        <caption>Report summary intercepts against Varshni (1967) gaps</caption>
         <thead>
           <tr>
             <th scope="col">Diode</th>
@@ -230,9 +231,10 @@
         </tbody>
       </table>
       <p class="caveat">
-        Uncertainties are trend-line spreads, not total uncertainties. LEDs are compared with the
-        same die's room-temperature emission instead, because an alloy LED has no well-defined 0 K
-        gap. Sources and arithmetic:
+        The original per-run recordings no longer exist, so this table quotes the report's summary
+        and cannot be refitted here. Uncertainties are trend-line spreads, not total uncertainties.
+        LEDs are compared with the same die's room-temperature emission instead, because an alloy
+        LED has no well-defined 0 K gap. Sources and arithmetic:
         <a href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/docs/physics-audit.md">physics audit</a>.
       </p>
     </section>
@@ -263,12 +265,12 @@
         <p>
           Not new physics. Not a better band gap than the literature. The measurement is a classic
           teaching experiment, and the straight-line analysis is a known simplification. The
-          contribution is the interrogation: which assumptions the data support, how much they
-          actually constrain, and what to measure next.
+          contribution is the interrogation: which assumptions the protocol supports, how much
+          simulations and the surviving summary actually constrain, and what to measure next.
         </p>
         <p>
-          Every number on the site traces to code, a hash-pinned dataset and a commit. Claims that
-          are not yet verified are labelled, not hidden. If a sampler diagnostic fails, the site
+          Every number traces to code, a cited source or a hash-pinned dataset, and a commit. Claims
+          that are not verified are labelled, not hidden. If a sampler diagnostic fails, the site
           does not show a "converged" badge.
         </p>
       </div>
@@ -277,8 +279,9 @@
     <section class="next" aria-labelledby="n-title">
       <h2 id="n-title">Status</h2>
       <p>
-        Phase 0 — walking skeleton. The repository, CI, documentation and project board are in
-        place; the physics audit, data audit and scenes follow. Full plan in
+        Phase 0 — walking skeleton. The repository, CI, physics audit and data-provenance audit
+        are complete. The original recordings no longer exist, so later scenes use labelled
+        simulated and report-anchored data. Full plan in
         <a href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/docs/roadmap.md">the roadmap</a>.
       </p>
     </section>

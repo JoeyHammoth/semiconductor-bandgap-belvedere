@@ -7,7 +7,8 @@
 //   node scripts/validate-data.mjs --require-complete
 //
 // `--require-complete` additionally demands all five materials and a sibling
-// note for each run. Enable it once the recordings are committed.
+// note for each run. Use it only with authentic recordings; never with
+// reconstructed or digitized data.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
@@ -224,7 +225,7 @@ function main() {
   }
 
   if (runs.length === 0) {
-    console.log("data/raw: 0 runs committed; schema and audit rules loaded, awaiting the recordings");
+    console.log("data/raw: 0 runs committed; no dataset is present");
   } else {
     console.log(`data/raw: ${runs.length} run(s) valid${requireComplete ? " and complete" : ""}`);
   }

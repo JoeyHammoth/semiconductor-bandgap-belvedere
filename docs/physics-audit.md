@@ -1,6 +1,6 @@
 # Physics audit: what the lab numbers actually mean
 
-Status: **complete for the literature and arithmetic items; two items parked pending raw data**. Every claim below carries a source, and every computed number is reproduced by `python scripts/physics-audit.py`.
+Status: **complete for the literature and arithmetic items; raw-data items are unavailable, not pending**. The five original runs no longer exist. Every claim below carries a source, and every computed number is reproduced by `python scripts/physics-audit.py`.
 
 This note exists because the design document flags several recalled values `[VERIFY]`. Publishing any of them without a source would undermine the project's honesty claim, so the rule is: no number reaches public copy until it appears here with a verdict.
 
@@ -107,7 +107,7 @@ Candidate causes, none of which the report can separate:
 - **Ideality and series resistance.** `n > 1` multiplies the prefactor term and the gap term; `R_s` adds a constant. Neither is recorded.
 - **Fit window.** The actual per-run temperature ranges are not in the report; curvature bias depends on them.
 
-The honest treatment is to publish the intercept as a *fitted* quantity and show the three candidate gaps beside it, which is exactly what the app's "What does the straight line actually estimate?" panel will do. It must not quietly replace the report's numbers with corrected ones.
+The honest treatment is to publish the intercept as a *fitted* quantity and show the three candidate gaps beside it, which is what the app's "What does the straight line actually estimate?" panel does with the report summary. It must not quietly replace the report's numbers with corrected ones, and it cannot refit them without the lost recordings.
 
 ### 4.2 The quoted uncertainties are not total uncertainties
 
@@ -131,7 +131,7 @@ What *is* meaningful for an LED is internal consistency: the measured forward-vo
 
 ## 5. `R_set`, current and the 10× ambiguity — parked
 
-The report says "arbitrarily, `R_set = 220 Ω`, `R_set = 2200 Ω` and `R_temp = 150 Ω`" [RPT], but never says which run used which resistor, and the raw logs are not published.
+The report says "arbitrarily, `R_set = 220 Ω`, `R_set = 2200 Ω` and `R_temp = 150 Ω`" [RPT], but never says which run used which resistor, and the raw logs no longer exist.
 
 Using the LM234 relation `I_set = γT / R_set` with γ = 227 µV/K (Section 6) [TI-LM, HO]:
 
@@ -142,7 +142,7 @@ Using the LM234 relation `I_set = γT / R_set` with γ = 227 µV/K (Section 6) [
 
 A 10× current step shifts the forward voltage by `n(kT/q)ln 10` = **59.5 mV** at 300 K for n = 1, or 119 mV for n = 2. Both are 5–10× the quoted δ, so the ambiguity is material, not cosmetic. At 30 µA the 1N4007 is also deep in the recombination-dominated regime, where n ≈ 2 and the ideal-diode assumption is weakest [SZE].
 
-**Verdict:** unresolved, **do not publish per-run current or `R_set`**. Carried to the data audit (#10), which must recover it from the raw files. The app may show the two candidate currents as a sensitivity toggle, labelled as an assumption.
+**Verdict:** unavailable, **do not publish per-run current or `R_set`**. The logs needed to resolve the assignment are lost. The app may show the two candidate currents as a sensitivity toggle, labelled as a hypothetical assumption.
 
 ## 6. Bose–Einstein form and attribution — corrected
 
@@ -234,7 +234,7 @@ The design's instrument constants are correct. The thermocouple model cannot be 
 | Varshni vs Bose–Einstein form | **resolved** | §6, [OC91], [VLC84] | use `E_g(0) − 2a_B/(e^{Θ/T}−1)`; `E_B` is not `E_g(0)` |
 | `T^η` prefactor, η ≈ 3 | **parked (illustrative)** | §9, [SZE], [PS02] | label illustrative; prior 3 ± 1, range 1.5–5 |
 | EPM form factors | **resolved** | §8, [CB66] | Ge a = 5.65 Å, not 5.66 |
-| Report wavelengths and `R_set` | **resolved / parked** | §5, §7 | 610.8 nm; no per-run current until #10 |
+| Report wavelengths and `R_set` | wavelengths resolved; `R_set` unavailable | §5, §7 | 610.8 nm from the measured gap; no per-run current claim |
 | 1N4007 diffusion vs recombination | **parked** | §9, [SZE] | no ideality claim until measured |
 | Instrument specs | **partly resolved** | §10, [TI-ADC], [TI-LM] | no thermocouple-uncertainty claim without datasheet |
 
@@ -247,7 +247,7 @@ The design's instrument constants are correct. The thermocouple model cannot be 
   2. for Si and Ge, show intercept, `E_g(0)` and `E_g(300 K)` side by side (the app panel in §4);
   3. for LEDs, compare with the same die's emission energy at the measurement temperature, not a textbook bin;
   4. quote δ as trend-line spread, not total uncertainty;
-  5. no per-run `R_set`/current, no thermocouple calibration, and no 1N4007 ideality until #10 and the instrument datasheet land.
+  5. no per-run `R_set`/current, no thermocouple calibration, and no 1N4007 ideality; the original recordings are lost and the meter datasheet is still missing.
 
 ## 13. References
 

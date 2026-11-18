@@ -4,7 +4,7 @@ Track every third-party asset and dependency that ships to the browser. Record t
 
 ## 1. Project licence
 
-Source code and original written material: MIT (see [`LICENSE`](../LICENSE)). The recorded dataset and the source report are **not** covered by the MIT grant; their publication terms are tracked in [`data.md`](data.md) and must be resolved before the site uses real data publicly.
+Source code and original written material: MIT (see [`LICENSE`](../LICENSE)). There is no recorded dataset to license: the original runs were lost. The source report and figures are **not** covered by the MIT grant and are not redistributed; their terms are tracked in [`data.md`](data.md).
 
 ## 2. Fonts
 
@@ -34,9 +34,9 @@ Self-hosted through Fontsource, Latin subset, `woff2`, `font-display: swap`. Kee
 
 | Asset | Status | Action |
 |---|---|---|
-| Lab report text and Table 1 | coursework, permission pending | do not publish until consent recorded |
-| Report figures (`source/Journal_Report/images/`) | coursework, permission pending | provenance only; not shipped |
-| Measured runs | coursework, permission pending | simulator mode until resolved |
+| Lab report text and Table 1 | coursework; cited, not redistributed | quote only the audited summary with attribution; do not copy the report into the site |
+| Report figures (`source/Journal_Report/images/`) | coursework; not shipped | provenance only; never a data source |
+| Measured runs | publication with attribution approved; recordings lost | no dataset exists; simulator mode |
 | CIE 1931 fit (Wyman et al.) | published analytic approximation | cite the paper |
 | EPM form factors | published values | cite Cohen & Bergstresser (1966) |
 | Varshni / Bose–Einstein parameters | published values | cite originals; verify before use |
