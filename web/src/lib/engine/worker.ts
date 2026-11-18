@@ -11,8 +11,10 @@ function reply(message: Response) {
   ctx.postMessage(message);
 }
 
+let transferred: WebAssembly.Module | undefined;
+
 async function ensureCore(): Promise<CoreModule> {
-  if (!core) core = await loadCore(base);
+  if (!core) core = await loadCore(base, transferred);
   return core;
 }
 
@@ -21,6 +23,7 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
   try {
     if (request.kind === 'init') {
       base = request.base;
+      transferred = request.module;
       core = null;
       core = await ensureCore();
       reply({ id: request.id, ok: true, kind: 'ready' });

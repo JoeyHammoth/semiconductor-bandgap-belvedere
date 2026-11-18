@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { EnginePool, defaultPoolSize } from '../lib/engine/pool';
+  import HeroGap from '../lib/scenes/HeroGap.svelte';
   import StatusBar from '../lib/ui/StatusBar.svelte';
   import { DEFAULT_STATE, decodeState, encodeState } from '../lib/state/permalink';
 
@@ -9,7 +10,8 @@
   const SI = { eg0: 1.1557, alpha: 7.021e-4, beta: 1108 };
 
   let pool: EnginePool | null = null;
-  let backend = $state('detecting');
+  let backend = $state<'detecting' | 'webgpu' | 'webgl2' | 'static'>('detecting');
+  let daylight = $state(false);
   let core = $state('starting');
   let temperature = $state(DEFAULT_STATE.temperature);
   let gap = $state<number | null>(null);
@@ -19,9 +21,14 @@
 
   const commit = typeof __COMMIT_HASH__ === 'string' ? __COMMIT_HASH__ : 'dev';
 
-  function detectBackend(): string {
-    if (typeof navigator !== 'undefined' && 'gpu' in navigator) return 'webgpu';
-    return 'webgl2';
+  function applyTheme() {
+    document.documentElement.dataset.theme = daylight ? 'daylight' : 'darkroom';
+    localStorage.setItem('bgo-theme', daylight ? 'daylight' : 'darkroom');
+  }
+
+  function toggleTheme() {
+    daylight = !daylight;
+    applyTheme();
   }
 
   async function readGap(t: number) {
@@ -36,12 +43,19 @@
   }
 
   onMount(() => {
-    backend = detectBackend();
+    daylight = localStorage.getItem('bgo-theme') === 'daylight';
+    applyTheme();
 
     const hash = window.location.hash.slice(1);
     if (hash) temperature = decodeState(hash).temperature;
 
-    pool = new EnginePool(defaultPoolSize(), '');
+    // Workers resolve relative imports against their own chunk URL, so the
+    // base must be absolute. The glue is generated, so it is not part of the
+    // typed asset manifest; on this root route the document base is the app
+    // base (including any configured subpath).
+    const glue = new URL('wasm/bgo_wasm.js', document.baseURI);
+    const basePath = new URL('../', glue).href.replace(/\/$/, '');
+    pool = new EnginePool(defaultPoolSize(), basePath);
     void (async () => {
       const ready = await pool!.version();
       if (!ready.ok) {
@@ -94,6 +108,9 @@
       <a href="#method">Method</a>
       <a href="#honesty">Honesty</a>
       <a href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere#readme">Docs</a>
+      <button class="theme" type="button" onclick={toggleTheme} aria-pressed={daylight}>
+        {daylight ? 'Darkroom' : 'Daylight'}
+      </button>
     </nav>
   </header>
 
@@ -114,7 +131,8 @@
             {display}<span class="unit">eV</span>
           </p>
           <p class="caveat">
-            Silicon literature parameters, <strong>pending primary-source verification</strong>.
+            Silicon Varshni (1967) parameters, verified in the
+            <a href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/docs/physics-audit.md">physics audit</a>.
             Computed in Rust/WASM, not in this component.
           </p>
         </div>
@@ -139,6 +157,8 @@
           {/if}
         </div>
       </div>
+
+      <HeroGap {gap} {temperature} onbackend={(value) => (backend = value)} />
 
       {#if table.length > 0}
         <table class="readout-table">
@@ -171,6 +191,50 @@
           combination far better than they constrain the gap itself.
         </p>
       </div>
+    </section>
+
+    <section id="receipt" aria-labelledby="r-title">
+      <p class="eyebrow">Receipt 01 — the intercept</p>
+      <h2 id="r-title">What the straight line actually estimates</h2>
+      <div class="prose">
+        <p>
+          The lab reports the y-intercept as the band gap. It is not: Varshni curvature alone puts
+          the chord extrapolation 37–43 mV above the true 0 K gap over 300–383 K, and a
+          temperature-dependent prefactor adds about 29 mV per unit η. The measured intercepts sit
+          below even that chord.
+        </p>
+      </div>
+      <table class="readout-table">
+        <caption>Report intercepts against Varshni (1967) gaps</caption>
+        <thead>
+          <tr>
+            <th scope="col">Diode</th>
+            <th scope="col">Fitted intercept (eV)</th>
+            <th scope="col">E<sub>g</sub>(0 K) (eV)</th>
+            <th scope="col">E<sub>g</sub>(300 K) (eV)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Si (1N4007)</th>
+            <td class="tabular">1.002 ± 0.011</td>
+            <td class="tabular">1.1557</td>
+            <td class="tabular">1.1108</td>
+          </tr>
+          <tr>
+            <th scope="row">Ge (1N60P)</th>
+            <td class="tabular">0.646 ± 0.007</td>
+            <td class="tabular">0.7412</td>
+            <td class="tabular">0.6607</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="caveat">
+        Uncertainties are trend-line spreads, not total uncertainties. LEDs are compared with the
+        same die's room-temperature emission instead, because an alloy LED has no well-defined 0 K
+        gap. Sources and arithmetic:
+        <a href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/docs/physics-audit.md">physics audit</a>.
+      </p>
     </section>
 
     <section id="method" aria-labelledby="m-title">
@@ -440,5 +504,23 @@
 
   .next p {
     max-width: 68ch;
+  }
+
+  .theme {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    background: transparent;
+    border: var(--hairline);
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+    cursor: pointer;
+  }
+
+  .theme:hover {
+    color: var(--ink);
+    border-color: var(--accent);
   }
 </style>

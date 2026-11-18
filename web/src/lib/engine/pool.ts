@@ -1,3 +1,4 @@
+import { compileCore } from './core';
 import type { Request, Response } from './protocol';
 
 export interface EngineSuccess {
@@ -21,11 +22,15 @@ interface Pending {
 type WithoutId<T> = T extends { id: number } ? Omit<T, 'id'> : never;
 type RequestBody = WithoutId<Request>;
 
+type WorkerFactory = () => Worker;
+
 /**
  * A small pool of module workers, each with its own WASM instance.
  *
  * No SharedArrayBuffer: GitHub Pages cannot send COOP/COEP, so parallelism is
- * embarrassingly parallel workers (ADR 0005). Cancellation is termination.
+ * embarrassingly parallel workers (ADR 0005). The binary is compiled once on
+ * the main thread and the `WebAssembly.Module` is posted to every worker;
+ * cancellation is worker termination, followed by a clean respawn.
  */
 export class EnginePool {
   #workers: Worker[] = [];
@@ -34,27 +39,61 @@ export class EnginePool {
   #cursor = 0;
   #timeoutMs: number;
   #disposed = false;
+  #base: string;
+  #size: number;
+  #factory: WorkerFactory;
+  #module: WebAssembly.Module | null = null;
+  #initSent = false;
+  #primed: Promise<void>;
 
-  constructor(size: number, base: string, timeoutMs = 15_000) {
+  constructor(size: number, base: string, timeoutMs = 15_000, factory?: WorkerFactory) {
     this.#timeoutMs = timeoutMs;
-    for (let i = 0; i < size; i += 1) {
-      const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
-      worker.onmessage = (event: MessageEvent<Response>) => this.#handle(event.data);
-      worker.onerror = (event) => {
-        console.error('engine worker error', event.message);
-      };
-      const id = this.#nextId++;
-      this.#pending.set(id, {
-        resolve: () => undefined,
-        timer: setTimeout(() => undefined, 0),
-      });
-      worker.postMessage({ id, kind: 'init', base } satisfies Request);
-      this.#workers.push(worker);
-    }
+    this.#base = base;
+    this.#size = Math.max(1, size);
+    this.#factory =
+      factory ?? (() => new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' }));
+    for (let i = 0; i < this.#size; i += 1) this.#workers.push(this.#spawn());
+    this.#primed = this.#prime();
   }
 
   get size() {
     return this.#workers.length;
+  }
+
+  get pendingCount() {
+    return this.#pending.size;
+  }
+
+  /** Resolves once the core has been compiled once and init has been posted. */
+  prime() {
+    return this.#primed;
+  }
+
+  #spawn(): Worker {
+    const worker = this.#factory();
+    worker.onmessage = (event: MessageEvent<Response>) => this.#handle(event.data);
+    worker.onerror = (event) => {
+      console.error('engine worker error', event.message);
+    };
+    if (this.#initSent) this.#postInit(worker);
+    return worker;
+  }
+
+  #postInit(worker: Worker) {
+    const id = this.#nextId++;
+    worker.postMessage(
+      { id, kind: 'init', base: this.#base, module: this.#module ?? undefined } satisfies Request,
+    );
+  }
+
+  async #prime() {
+    try {
+      this.#module = await compileCore(this.#base);
+    } catch {
+      this.#module = null;
+    }
+    this.#initSent = true;
+    for (const worker of this.#workers) this.#postInit(worker);
   }
 
   #handle(message: Response) {
@@ -72,8 +111,18 @@ export class EnginePool {
     }
   }
 
+  #failAll(error: string) {
+    for (const pending of this.#pending.values()) {
+      clearTimeout(pending.timer);
+      pending.resolve({ ok: false, error });
+    }
+    this.#pending.clear();
+  }
+
   #send(request: RequestBody): Promise<EngineResult> {
     if (this.#disposed) return Promise.resolve({ ok: false, error: 'engine disposed' });
+    if (this.#workers.length === 0) return Promise.resolve({ ok: false, error: 'no engine workers' });
+
     const worker = this.#workers[this.#cursor % this.#workers.length];
     this.#cursor += 1;
     const id = this.#nextId++;
@@ -83,7 +132,17 @@ export class EnginePool {
         resolve({ ok: false, error: `timeout after ${this.#timeoutMs} ms` });
       }, this.#timeoutMs);
       this.#pending.set(id, { resolve, timer });
-      worker.postMessage({ ...request, id } as Request);
+
+      // Register the request before the worker is ready so that cancelAll() can
+      // reject it, then post once init has been sent to the pool.
+      if (this.#initSent) {
+        worker.postMessage({ ...request, id } as Request);
+      } else {
+        void this.#primed.then(() => {
+          if (!this.#pending.has(id)) return;
+          worker.postMessage({ ...request, id } as Request);
+        });
+      }
     });
   }
 
@@ -100,13 +159,21 @@ export class EnginePool {
     return results.every((r) => r.ok);
   }
 
+  /**
+   * Terminate every worker, reject in-flight requests, and respawn the pool.
+   * The compiled module is reused, so a respawn does not refetch the binary.
+   */
+  cancelAll() {
+    if (this.#disposed) return;
+    this.#failAll('cancelled');
+    for (const worker of this.#workers) worker.terminate();
+    this.#workers = [];
+    for (let i = 0; i < this.#size; i += 1) this.#workers.push(this.#spawn());
+  }
+
   dispose() {
     this.#disposed = true;
-    for (const pending of this.#pending.values()) {
-      clearTimeout(pending.timer);
-      pending.resolve({ ok: false, error: 'engine disposed' });
-    }
-    this.#pending.clear();
+    this.#failAll('engine disposed');
     for (const worker of this.#workers) worker.terminate();
     this.#workers = [];
   }

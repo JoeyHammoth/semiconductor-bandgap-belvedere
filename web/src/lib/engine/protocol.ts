@@ -1,7 +1,7 @@
 /** Worker protocol. Mirrored by the exports in `crates/bgo-wasm`. */
 
 export type Request =
-  | { id: number; kind: 'init'; base: string }
+  | { id: number; kind: 'init'; base: string; module?: WebAssembly.Module }
   | { id: number; kind: 'version' }
   | {
       id: number;
@@ -20,6 +20,7 @@ export type Response =
 
 export interface CoreModule {
   default: (init: unknown) => Promise<unknown>;
+  initSync?: (init: { module: WebAssembly.Module }) => unknown;
   core_version: () => string;
   varshni_gap: (eg0: number, alpha: number, beta: number, temperature: number) => number;
   ideal_diode_voltage: (

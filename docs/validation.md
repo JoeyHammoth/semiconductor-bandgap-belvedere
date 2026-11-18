@@ -67,12 +67,12 @@ Status legend: **pending** (no implementation yet), **wired** (test exists, no r
 
 | Claim | Test | Tolerance | Status |
 |---|---|---|---|
-| Landing page has no serious axe violations | Playwright + axe-core | zero serious/critical | pending |
-| Lighthouse budgets hold | Lighthouse CI | thresholds in `lighthouserc.json` | pending |
-| Size budgets hold | `scripts/size-budget.mjs` | design §8.6 table | pending |
-| Accent contrast holds | computed WCAG ratio in CI | ≥ 4.5:1 for body text | pending |
-| Permalinks round-trip | unit test | byte-identical state | pending |
-| Base-path routing works | Playwright against `vite preview` | all routes reachable | pending |
+| Landing page has no serious axe violations | Playwright + axe-core | zero serious/critical | verified (CI) |
+| Lighthouse budgets hold | Lighthouse CI | thresholds in `lighthouserc.json` | verified (CI) |
+| Size budgets hold | `scripts/size-budget.mjs` + its negative self-test | design §8.6 table; oversized asset fails | verified (CI) |
+| Accent contrast holds | `scripts/contrast.mjs` in both themes | ≥ 4.5:1 for body text and links | verified (CI) |
+| Permalinks round-trip | unit test | byte-identical state | verified (unit) |
+| Base-path routing works | Playwright against `vite preview` | all routes reachable | verified (CI) |
 
 ## 8. How to run
 
