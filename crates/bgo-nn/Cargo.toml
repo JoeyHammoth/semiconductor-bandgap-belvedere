@@ -1,0 +1,11 @@
+[package]
+name = "bgo-nn"
+description = "Hand-written conditional flow engine for amortised neural posteriors."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]

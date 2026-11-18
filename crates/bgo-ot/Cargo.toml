@@ -1,0 +1,11 @@
+[package]
+name = "bgo-ot"
+description = "Optimal transport distances and transport maps for posterior comparison."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]

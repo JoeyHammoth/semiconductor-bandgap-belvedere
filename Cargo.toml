@@ -1,0 +1,37 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/bgo-physics",
+  "crates/bgo-ad",
+  "crates/bgo-infer",
+  "crates/bgo-info",
+  "crates/bgo-ot",
+  "crates/bgo-ssm",
+  "crates/bgo-nn",
+  "crates/bgo-epm",
+  "crates/bgo-wasm",
+]
+
+[workspace.package]
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.82"
+license = "MIT"
+repository = "https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere"
+
+[workspace.dependencies]
+bgo-physics = { path = "crates/bgo-physics" }
+bgo-ad = { path = "crates/bgo-ad" }
+bgo-infer = { path = "crates/bgo-infer" }
+bgo-info = { path = "crates/bgo-info" }
+bgo-ot = { path = "crates/bgo-ot" }
+bgo-ssm = { path = "crates/bgo-ssm" }
+bgo-nn = { path = "crates/bgo-nn" }
+bgo-epm = { path = "crates/bgo-epm" }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
