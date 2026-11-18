@@ -1,0 +1,7 @@
+{
+  "generated_at": "2026-11-18T00:00:00Z",
+  "generator": "scripts/hash-data.mjs",
+  "algorithm": "sha256",
+  "note": "Empty until the five diode runs are audited and committed. Regenerate with `node scripts/hash-data.mjs`.",
+  "files": {}
+}
