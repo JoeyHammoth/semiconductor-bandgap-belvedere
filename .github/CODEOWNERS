@@ -1,0 +1,8 @@
+* @JoeyHammoth
+
+# Physics and validation claims need the maintainer
+/crates/bgo-physics/ @JoeyHammoth
+/docs/model.md @JoeyHammoth
+/docs/validation.md @JoeyHammoth
+/docs/physics-audit.md @JoeyHammoth
+/data/ @JoeyHammoth

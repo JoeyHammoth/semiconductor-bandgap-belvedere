@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: "Band-Gap Observatory"
+message: "If you use this software or its results, please cite the repository and the archived release."
+type: software
+authors:
+  - family-names: "Putradi"
+    given-names: "James Nikolas"
+    alias: "JoeyHammoth"
+repository-code: "https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere"
+url: "https://joeyhammoth.github.io/semiconductor-bandgap-belvedere/"
+license: MIT
+abstract: >-
+  A browser-native, zero-backend inference and experiment-design instrument for
+  undergraduate diode thermometry: sloppy-model analysis, microcanonical HMC,
+  nested sampling, Stein variational inference, optimal transport, state-space
+  models and amortised neural posteriors, with a GPU-rendered interface.
+keywords:
+  - band gap
+  - diode thermometry
+  - Bayesian inference
+  - nested sampling
+  - sloppy models
+  - WebAssembly
+  - WebGPU
+version: 0.0.0
+date-released: "2026-11-18"

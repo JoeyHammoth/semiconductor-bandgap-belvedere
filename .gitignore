@@ -1,3 +1,39 @@
+# Agents and local tooling
 .agents
 .freebuff
+.bootstrap
+.scratch
+
+# Secrets
 .env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+web/node_modules/
+target/
+train/.venv/
+train/.pytest_cache/
+__pycache__/
+*.pyc
+
+# Build output
+web/build/
+web/.svelte-kit/
+web/static/wasm/*
+!web/static/wasm/.gitkeep
+web/test-results/
+web/playwright-report/
+web/.lighthouseci/
+artifacts/
+
+# Editor and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

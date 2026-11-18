@@ -1,0 +1,36 @@
+name: Research / verification task
+description: Verify a recalled number against a primary source
+title: "[research]: "
+labels: ["type:research", "needs-triage"]
+body:
+  - type: textarea
+    id: claim
+    attributes:
+      label: Claim to verify
+      description: Quote the number or statement and where it is currently used.
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: Primary sources to check
+      description: Papers, datasheets, standards. Not blog posts or Wikipedia.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: What changes if the claim is wrong
+      description: Code, public copy, a validation tolerance, a prior?
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Definition of done
+      description: Where the verdict is recorded and how the code or copy is updated.
+      placeholder: |
+        - [ ] Verdict recorded in docs/physics-audit.md with citation
+        - [ ] Code/copy updated or explicitly parked as "do not publish"
+    validations:
+      required: true
