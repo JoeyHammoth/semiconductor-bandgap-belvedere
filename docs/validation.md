@@ -20,10 +20,13 @@ Table 1 intercept reproduction is not pending: it is **unavailable**. No authent
 
 | Claim | Test | Tolerance | Status |
 |---|---|---|---|
-| AD first and second derivatives are exact | property tests vs finite differences on random inputs | rel. error ≤ 1e-8 (first), ≤ 1e-6 (second) | pending |
-| Ideal limit reduces to the lab equation | symbolic/numeric comparison | ≤ 1e-12 V | pending |
-| `W(z)` satisfies `W·e^W = z` | property test over branches | ≤ 1e-12 relative | pending |
-| Two-current identity holds on noiseless data | simulated fixture | ≤ 1e-10 V | pending |
+| AD first and second derivatives are exact | `cargo test -p bgo-ad`; seeded property tests vs five-point differences | rel. error ≤ 1e-8 (first), ≤ 1e-6 (second) | verified (unit) |
+| Ideal limit reduces to the lab equation | `cargo test -p bgo-physics diode::tests::ideal_limit` | ≤ 1e-12 V | verified (unit) |
+| `W(z)` satisfies `W·e^W = z` | `cargo test -p bgo-physics lambert_w::`; both branches, large and near-zero arguments | ≤ 1e-12 relative | verified (unit) |
+| Lambert W reproduces the implicit diode equation | `cargo test -p bgo-physics diode::tests::lambert_form` | ≤ 1e-12 V | verified (unit) |
+| Gap models return `E_g(0)` at 0 K and the audited values at 300 K | `cargo test -p bgo-physics gap::` | ≤ 5e-5 eV | verified (unit) |
+| CIE fit and sRGB conversion follow the cited approximation | `cargo test -p bgo-physics colour::` | 555 nm y ±0.01; equal-energy white ±5e-4; 6500 K ±0.01 of D65 | verified (unit) |
+| Two-current identity holds on noiseless data | `cargo test -p bgo-physics diode::tests::two_current` | ≤ 1e-10 V | verified (unit) |
 | Hamiltonian is real symmetric | Hermiticity residual | ≤ 1e-12 | pending |
 
 ## 3. Samplers
