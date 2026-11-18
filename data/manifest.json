@@ -2,6 +2,6 @@
   "generated_at": "2026-11-18T00:00:00Z",
   "generator": "scripts/hash-data.mjs",
   "algorithm": "sha256",
-  "note": "Empty until the five diode runs are audited and committed. Regenerate with `node scripts/hash-data.mjs`.",
+  "note": "Intentionally empty: the five original runs no longer exist. This manifest is reserved for authentic data; see docs/adr/0006-no-recorded-dataset.md.",
   "files": {}
 }

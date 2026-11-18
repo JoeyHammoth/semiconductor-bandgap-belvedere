@@ -1,34 +1,44 @@
 # Data and provenance
 
-The project's credibility rests on being able to say exactly which numbers produced which claim. Every dataset is a plain JSON file in git, hash-pinned in a manifest, and validated against a schema in CI.
+Status: **no recorded dataset**. The five original PHYC30021 diode-thermometry runs no longer exist. This page records what survives, what cannot be checked, and how the repository prevents a substitute dataset from being mistaken for the measurements.
 
-## 1. Sources
+## 1. What survives
 
-| Source | Path | Notes |
+| Source | Path | Use |
 |---|---|---|
-| PHYC30021 lab report | `source/Journal_Report/main.md` | narrative, Table 1, instrument description |
-| Report figures | `source/Journal_Report/images/` | figure provenance only; not shipped to the site |
+| PHYC30021 lab report | `source/Journal_Report/main.md` | narrative, the quoted Table 1 summary and instrument description |
+| Report figures | `source/Journal_Report/images/` | provenance only; not shipped and not a data source |
 | Lab handout | `source/Semiconductors.pdf` | method and parameter targets |
 | Design document | `source/bandgap-observatory-design.md` | specification, not data |
 
-`source/` is treated as immutable input material. Cleaned, machine-readable runs live in `data/`.
+The report is a secondary summary of the lost runs. A number copied from it is labelled **report summary**, never "the measured runs" and never a hash-pinned observation.
 
-## 2. Layout
+## 2. What is unavailable
+
+- The raw `t`, ADC counts, derived voltage, current, thermocouple temperature and LM234 current for every run.
+- The instrument configuration per run: ADC gain/FSR, `R_set`, `R_temp`, `R1`, supply and diode part number.
+- The per-point uncertainties needed to reproduce the report's max–min trend-line spread.
+- Any way to resolve which run used 220 Ω versus 2200 Ω.
+- Any way to tell whether the red 613 nm entry is a measured emission wavelength, a typo, or a different rounding convention. The measured gap 2.030 eV gives 610.76 nm.
+- Thermocouple calibration and the 1N4007 ideality at the recorded currents.
+
+Digitizing `fig_3a` does not recover the runs: it produces a derived curve with no per-point provenance. Fabricating or interpolating rows would be worse. ADR [0006](adr/0006-no-recorded-dataset.md) records the decision not to do either.
+
+## 3. Data slots are reserved, not populated
 
 ```text
 data/
-├─ raw/<run-id>.json          # as recorded, plus instrument configuration
-├─ raw/<run-id>.md            # human notes: what happened, known issues
-├─ clean/<run-id>.json        # validated, SI units, derived quantities
-├─ schema.json                # JSON Schema for raw and clean runs
-└─ manifest.json              # SHA-256 of every committed data file
+├─ raw/.gitkeep               # reserved; no run files
+├─ clean/                     # reserved; no derived files
+├─ schema.json                # contract for any future authentic run
+└─ manifest.json              # intentionally empty
 ```
 
-Run ids follow `<material>-<device>-<yyyymmdd>-<seq>`, for example `ge-1n60p-20240412-01`.
+There are no raw or clean runs, and `data/manifest.json` has an empty `files` map. The validator and schema remain useful only as a gate for authentic data that might surface later.
 
-## 3. Run record
+## 4. Run contract for a future recovery
 
-Required fields (see `data/schema.json` for the authoritative list):
+If original logs are ever recovered, each run must provide:
 
 | Field | Meaning |
 |---|---|
@@ -39,32 +49,41 @@ Required fields (see `data/schema.json` for the authoritative list):
 | `instrument` | ADC gain/FSR, `R_set`, `R_temp`, `R1`, supply limits |
 | `samples` | arrays of `t_s`, `adc_counts`, `voltage_v`, `current_a`, `temp_c`, `lm234_current_a` |
 | `notes` | free text, including anything that went wrong |
-| `provenance` | operator, consent/attribution status, source file hash |
+| `provenance` | operator, granted consent, attribution and source file |
 
-## 4. Units and conversions
+The authoritative constraints are in [`data/schema.json`](../data/schema.json). Internal units are SI; Celsius may be stored but must be declared and converted on load. `I = V_Rtemp / R_temp` and `λ[nm] = 1239.84 / E[eV]`.
 
-- Internal model units are SI. Temperature is kelvin inside the model; run files may store Celsius but must say so and are converted on load.
-- ADC counts are converted with the recorded FSR and gain, never a hard-coded constant.
-- `I = V_Rtemp / R_temp`; resistor tolerance is recorded, not inferred.
-- Wavelength uses `λ[nm] = 1239.84 / E[eV]`.
+## 5. Validation and hashing
 
-## 5. Hashing and the manifest
+`scripts/validate-data.mjs` checks every `data/raw/*.json` against the schema and the audit rules: filename and `run_id` must agree, all sample arrays must be the same length, each run needs a non-empty sibling `.md`, and consent must be `granted` with an attribution string. Its tests feed malformed fixtures through the same validator in CI.
 
-`scripts/hash-data.mjs` (Phase 0) rewrites `data/manifest.json` with the SHA-256 of every file under `data/raw` and `data/clean`. CI runs the same script in check mode and fails if the manifest is stale. The site footer's "Receipts" line shows the data hash alongside the commit hash.
+`scripts/hash-data.mjs` would pin any committed file in `data/manifest.json`. Today the manifest is empty by design.
 
-`scripts/validate-data.mjs` checks every `data/raw/*.json` against `data/schema.json` and the audit rules: the filename must match `run_id`, all sample arrays must be the same length, every run needs a non-empty sibling `.md`, and consent must be `granted` with an attribution string. Its self-tests feed malformed fixtures through the same validator in CI. `--require-complete` additionally demands all five materials; enable that flag in CI once the recordings are committed.
+`--require-complete` demands all five materials. It is reserved for authentic recordings; it must not be used to make an empty or reconstructed dataset look complete.
 
-## 6. Known issues in the recorded data
+## 6. Report summary and known limits
 
-- Thermocouple sensitivity dominates the reported uncertainty; temperature is the weakest variable.
-- The Peltier was paused during logging, so each point is quasi-static but not a continuous ramp.
-- A ceiling of 383.15 K was applied so the simplified Shockley equation stays usable; this truncates the temperature range and worsens the `E_g`/`ln B` degeneracy.
-- The report lists two `R_set` values (`220 Ω` and `2200 Ω`); which run used which must be recovered from the raw files.
-- The report's red wavelength (613 nm) does not match `1239.84 / 2.030 eV ≈ 610.7 nm`; recompute, do not copy.
+| Diode | Report intercept (eV) | Quoted spread (eV) |
+|---|---|---|
+| Ge | 0.646 | 0.0071 |
+| Si | 1.002 | 0.0113 |
+| Red LED | 2.030 | 0.0120 |
+| Blue LED | 2.796 | 0.0126 |
+| Green LED | 2.303 | 0.0112 |
+
+These are quoted summary values, not observations this repository can refit.
+
+- The quoted spread is a max–min trend-line spread, not a total uncertainty.
+- The report compares Ge and Si with 0.67 and 1.12 eV, which are 300 K gaps, not 0 K gaps.
+- The LEDs are compared with textbook bins, not the dies actually measured.
+- The red wavelength is internally inconsistent: 613 nm is quoted, while `1239.84 / 2.030 = 610.76 nm`.
+- No per-run current, temperature calibration or point-level uncertainty exists.
+
+The physics consequences are in [`docs/physics-audit.md`](physics-audit.md).
 
 ## 7. Consent and attribution
 
-The dataset and figures originate in coursework. Publication consent has been granted, with attribution required; the exact attribution line is recorded in each run's `provenance.attribution` and in `data/manifest.json` once the files exist. The five original logs have not yet been supplied, so no run file is committed and the site remains in simulator mode. This is tracked as Phase 0 task #10.
+Publication of the measured runs with attribution was approved, but the recordings no longer exist, so there is no dataset to publish. The report text and figures remain coursework material: they are cited and linked in `source/`, not copied into the deployed site. Any future use of the report's prose or figures requires the attribution wording to be confirmed and recorded first.
 
 ## 8. Privacy
 
