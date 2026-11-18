@@ -1,0 +1,6 @@
+.svelte-kit
+build
+static/wasm
+test-results
+playwright-report
+package-lock.json
