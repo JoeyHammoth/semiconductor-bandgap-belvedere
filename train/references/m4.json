@@ -1,0 +1,303 @@
+{
+  "case": {
+    "anchor": {
+      "kind": "physics-audit",
+      "label": "synthetic",
+      "note": "The series resistance is a simulation fixture in a simulated 220-383 K window; eta is fixed at 3.0 because one constant-current sweep cannot separate it from ideality.",
+      "source": "docs/physics-audit.md sections 2 and 9"
+    },
+    "case_id": "m4",
+    "config_sha256": "c83d761bb092069701af461fa53e3b1fb655630416107030362a91023ecbf98a",
+    "data": {
+      "current_a": 0.0003,
+      "points": 41,
+      "temperature_start_k": 220.0,
+      "temperature_stop_k": 383.15
+    },
+    "description": "Synthetic M4 case in an extended window, adding series resistance to M3.",
+    "model": "M4",
+    "noise": {
+      "adc_lsb_v": 0.000125,
+      "likelihood_sigma_v": 0.0001253079539906918,
+      "voltage_sigma_v": 0.00012
+    },
+    "seed": 20261123,
+    "source": "m4.toml",
+    "synthetic": true,
+    "truth": {
+      "alpha_ev_per_k": 0.0007021,
+      "beta_k": 1108.0,
+      "eg0_ev": 1.1557,
+      "ideality": 1.05,
+      "ln_b": -6.200414441,
+      "series_resistance_ohm": 8.0
+    }
+  },
+  "observations": {
+    "current_a": 0.0003,
+    "noise": {
+      "adc_lsb_v": 0.000125,
+      "likelihood_sigma_v": 0.0001253079539906918,
+      "voltage_sigma_v": 0.00012
+    },
+    "synthetic": true,
+    "temperature_k": [
+      220.0,
+      224.07875,
+      228.1575,
+      232.23625,
+      236.315,
+      240.39375,
+      244.4725,
+      248.55125,
+      252.63,
+      256.70875,
+      260.7875,
+      264.86625,
+      268.945,
+      273.02375,
+      277.1025,
+      281.18125,
+      285.26,
+      289.33875,
+      293.4175,
+      297.49625,
+      301.575,
+      305.65375,
+      309.7325,
+      313.81125,
+      317.89,
+      321.96875,
+      326.0475,
+      330.12625,
+      334.205,
+      338.28375,
+      342.3625,
+      346.44125,
+      350.52,
+      354.59875,
+      358.6775,
+      362.75625,
+      366.835,
+      370.91375,
+      374.9925,
+      379.07125,
+      383.15
+    ],
+    "voltage_v": [
+      0.828875,
+      0.820625,
+      0.8115,
+      0.8025,
+      0.794,
+      0.785,
+      0.776,
+      0.767375,
+      0.758375,
+      0.74925,
+      0.740125,
+      0.73125,
+      0.72225,
+      0.713375,
+      0.704125,
+      0.695125,
+      0.685875,
+      0.676625,
+      0.667375,
+      0.658,
+      0.648625,
+      0.6395,
+      0.630125,
+      0.620625,
+      0.611375,
+      0.602,
+      0.592375,
+      0.58325,
+      0.57375,
+      0.564125,
+      0.554875,
+      0.545125,
+      0.535625,
+      0.526,
+      0.516625,
+      0.507,
+      0.497375,
+      0.487625,
+      0.4775,
+      0.46825,
+      0.458375
+    ]
+  },
+  "reference": {
+    "arviz_version": "1.3.0",
+    "correlation": {
+      "matrix": [
+        [
+          1.0,
+          0.986209032,
+          0.911847531,
+          -0.2735306915,
+          -0.9964532178,
+          -0.0496672927
+        ],
+        [
+          0.986209032,
+          1.0,
+          0.9264035608,
+          -0.1373760808,
+          -0.9808813021,
+          -0.0237221065
+        ],
+        [
+          0.911847531,
+          0.9264035608,
+          1.0,
+          0.063347957,
+          -0.9102983815,
+          -0.0180615789
+        ],
+        [
+          -0.2735306915,
+          -0.1373760808,
+          0.063347957,
+          1.0,
+          0.2851237353,
+          0.0071439752
+        ],
+        [
+          -0.9964532178,
+          -0.9808813021,
+          -0.9102983815,
+          0.2851237353,
+          1.0,
+          0.0232213022
+        ],
+        [
+          -0.0496672927,
+          -0.0237221065,
+          -0.0180615789,
+          0.0071439752,
+          0.0232213022,
+          1.0
+        ]
+      ],
+      "parameters": [
+        "eg0_ev",
+        "ln_b",
+        "alpha_ev_per_k",
+        "beta_k",
+        "ideality",
+        "series_resistance_ohm"
+      ]
+    },
+    "diagnostics": {
+      "divergences": 0,
+      "ess_bulk": {
+        "alpha_ev_per_k": 1873.6993576994,
+        "beta_k": 2683.7741906144,
+        "eg0_ev": 1745.1316023369,
+        "ideality": 1738.5794633818,
+        "ln_b": 1784.2681408195,
+        "series_resistance_ohm": 2296.327041811
+      },
+      "ess_bulk_min": 1738.5794633818,
+      "num_chains": 4,
+      "num_draws": 2000,
+      "passes": true,
+      "rhat": {
+        "alpha_ev_per_k": 1.0011572735,
+        "beta_k": 1.0008704125,
+        "eg0_ev": 1.0011411479,
+        "ideality": 1.0011881257,
+        "ln_b": 1.0007027319,
+        "series_resistance_ohm": 1.0004796877
+      },
+      "rhat_max": 1.0011881257
+    },
+    "engine": "numpyro",
+    "jax_version": "0.12.0.1",
+    "mean": {
+      "alpha_ev_per_k": 0.000692226,
+      "beta_k": 1100.0801171686,
+      "eg0_ev": 1.1814444498,
+      "ideality": 1.0326980749,
+      "ln_b": -5.6877142862,
+      "series_resistance_ohm": 8.0797092203
+    },
+    "numpyro_version": "0.22.0",
+    "parameters": [
+      "eg0_ev",
+      "ln_b",
+      "alpha_ev_per_k",
+      "beta_k",
+      "ideality",
+      "series_resistance_ohm"
+    ],
+    "quantiles": {
+      "0.05": {
+        "alpha_ev_per_k": 0.0005484095,
+        "beta_k": 846.4126619654,
+        "eg0_ev": 1.0709351602,
+        "ideality": 0.937248973,
+        "ln_b": -7.3296698826,
+        "series_resistance_ohm": 0.598129414
+      },
+      "0.25": {
+        "alpha_ev_per_k": 0.0006315049,
+        "beta_k": 995.0769717948,
+        "eg0_ev": 1.1350975268,
+        "ideality": 0.9924553369,
+        "ln_b": -6.3770810565,
+        "series_resistance_ohm": 3.2205321673
+      },
+      "0.50": {
+        "alpha_ev_per_k": 0.0006918151,
+        "beta_k": 1098.4730263575,
+        "eg0_ev": 1.1804990229,
+        "ideality": 1.0303492731,
+        "ln_b": -5.6947322703,
+        "series_resistance_ohm": 6.7505460352
+      },
+      "0.75": {
+        "alpha_ev_per_k": 0.0007523392,
+        "beta_k": 1204.9339333385,
+        "eg0_ev": 1.2264560567,
+        "ideality": 1.0701527033,
+        "ln_b": -5.0088788074,
+        "series_resistance_ohm": 11.7063124567
+      },
+      "0.95": {
+        "alpha_ev_per_k": 0.0008417847,
+        "beta_k": 1355.1412579782,
+        "eg0_ev": 1.2990575813,
+        "ideality": 1.1325891627,
+        "ln_b": -3.956439669,
+        "series_resistance_ohm": 20.3272408795
+      }
+    },
+    "sd": {
+      "alpha_ev_per_k": 8.98929e-05,
+      "beta_k": 154.0324496901,
+      "eg0_ev": 0.0683672487,
+      "ideality": 0.0588152776,
+      "ln_b": 1.0117568071,
+      "series_resistance_ohm": 6.1863314755
+    },
+    "settings": {
+      "chains": 4,
+      "max_tree_depth": 12,
+      "samples": 2000,
+      "target_accept_prob": 0.99,
+      "warmup": 3000
+    }
+  },
+  "schema_version": 1,
+  "truth": {
+    "alpha_ev_per_k": 0.0007021,
+    "beta_k": 1108.0,
+    "eg0_ev": 1.1557,
+    "ideality": 1.05,
+    "ln_b": -6.200414441,
+    "series_resistance_ohm": 8.0
+  }
+}

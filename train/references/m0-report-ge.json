@@ -1,0 +1,212 @@
+{
+  "case": {
+    "anchor": {
+      "kind": "report-summary",
+      "label": "synthetic",
+      "note": "The anchor is a quoted summary value, not a recovered measurement or a Table 1 reproduction.",
+      "source": "PHYC30021 report, Table 1, Ge intercept",
+      "value_ev": 0.646
+    },
+    "case_id": "m0-report-ge",
+    "config_sha256": "3844e90bab35ddbc87b837471882e1291b0a1a43e00db131f9d90650d56bc64b",
+    "data": {
+      "current_a": 0.0003,
+      "points": 41,
+      "temperature_start_k": 293.15,
+      "temperature_stop_k": 383.15
+    },
+    "description": "Report-summary-anchored M0 case for Ge; all observations are synthetic.",
+    "model": "M0",
+    "noise": {
+      "adc_lsb_v": 0.000125,
+      "likelihood_sigma_v": 0.0001253079539906918,
+      "voltage_sigma_v": 0.00012
+    },
+    "seed": 20261119,
+    "source": "m0-report-ge.toml",
+    "synthetic": true,
+    "truth": {
+      "eg_ev": 0.646,
+      "ln_b": 3.33806313
+    }
+  },
+  "observations": {
+    "current_a": 0.0003,
+    "noise": {
+      "adc_lsb_v": 0.000125,
+      "likelihood_sigma_v": 0.0001253079539906918,
+      "voltage_sigma_v": 0.00012
+    },
+    "synthetic": true,
+    "temperature_k": [
+      293.15,
+      295.4,
+      297.65,
+      299.9,
+      302.15,
+      304.4,
+      306.65,
+      308.9,
+      311.15,
+      313.4,
+      315.65,
+      317.9,
+      320.15,
+      322.4,
+      324.65,
+      326.9,
+      329.15,
+      331.4,
+      333.65,
+      335.9,
+      338.15,
+      340.4,
+      342.65,
+      344.9,
+      347.15,
+      349.4,
+      351.65,
+      353.9,
+      356.15,
+      358.4,
+      360.65,
+      362.9,
+      365.15,
+      367.4,
+      369.65,
+      371.9,
+      374.15,
+      376.4,
+      378.65,
+      380.9,
+      383.15
+    ],
+    "voltage_v": [
+      0.3565,
+      0.354625,
+      0.35225,
+      0.349875,
+      0.34775,
+      0.345625,
+      0.343625,
+      0.34125,
+      0.339,
+      0.336625,
+      0.334625,
+      0.332125,
+      0.33,
+      0.3275,
+      0.32575,
+      0.3235,
+      0.321125,
+      0.319125,
+      0.316875,
+      0.3145,
+      0.31225,
+      0.31025,
+      0.308,
+      0.305875,
+      0.3035,
+      0.301375,
+      0.299125,
+      0.297,
+      0.2945,
+      0.292125,
+      0.29025,
+      0.287875,
+      0.285625,
+      0.283625,
+      0.281375,
+      0.279125,
+      0.277,
+      0.274625,
+      0.2725,
+      0.27,
+      0.268
+    ]
+  },
+  "reference": {
+    "arviz_version": "1.3.0",
+    "correlation": {
+      "matrix": [
+        [
+          1.0,
+          0.99666368
+        ],
+        [
+          0.99666368,
+          1.0
+        ]
+      ],
+      "parameters": [
+        "eg_ev",
+        "ln_b"
+      ]
+    },
+    "diagnostics": {
+      "divergences": 0,
+      "ess_bulk": {
+        "eg_ev": 915.6497131198,
+        "ln_b": 891.4524094815
+      },
+      "ess_bulk_min": 891.4524094815,
+      "num_chains": 4,
+      "num_draws": 2000,
+      "passes": true,
+      "rhat": {
+        "eg_ev": 1.0024561872,
+        "ln_b": 1.002867486
+      },
+      "rhat_max": 1.002867486
+    },
+    "engine": "numpyro",
+    "jax_version": "0.12.0.1",
+    "mean": {
+      "eg_ev": 0.6455030198,
+      "ln_b": 3.3214717943
+    },
+    "numpyro_version": "0.22.0",
+    "parameters": [
+      "eg_ev",
+      "ln_b"
+    ],
+    "quantiles": {
+      "0.05": {
+        "eg_ev": 0.6450948992,
+        "ln_b": 3.3075857029
+      },
+      "0.25": {
+        "eg_ev": 0.6453395275,
+        "ln_b": 3.3158534456
+      },
+      "0.50": {
+        "eg_ev": 0.6455049785,
+        "ln_b": 3.3215174656
+      },
+      "0.75": {
+        "eg_ev": 0.645671598,
+        "ln_b": 3.3272742433
+      },
+      "0.95": {
+        "eg_ev": 0.6459108497,
+        "ln_b": 3.3354116025
+      }
+    },
+    "sd": {
+      "eg_ev": 0.0002438636,
+      "ln_b": 0.008336025
+    },
+    "settings": {
+      "chains": 4,
+      "max_tree_depth": 12,
+      "samples": 2000,
+      "target_accept_prob": 0.99,
+      "warmup": 3000
+    }
+  },
+  "schema_version": 1,
+  "truth": {
+    "eg_ev": 0.646,
+    "ln_b": 3.33806313
+  }
+}

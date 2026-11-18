@@ -1,0 +1,29 @@
+schema_version = 1
+case_id = "m2"
+model = "M2"
+synthetic = true
+seed = 20261121
+description = "Synthetic M2 case in an extended window with Si Varshni gap parameters and an illustrative prefactor."
+
+[anchor]
+kind = "physics-audit"
+source = "docs/physics-audit.md section 2, Si Varshni parameters"
+label = "synthetic"
+note = "The gap parameters are literature values; the 220-383 K observations are simulated, not measured."
+
+[data]
+current_a = 0.0003
+temperature_start_k = 220.0
+temperature_stop_k = 383.15
+points = 41
+
+[noise]
+voltage_sigma_v = 0.00012
+adc_lsb_v = 0.000125
+
+[truth]
+eg0_ev = 1.1557
+ln_b = -7.397705993
+eta = 3.0
+alpha_ev_per_k = 0.0007021
+beta_k = 1108.0
