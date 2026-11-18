@@ -10,7 +10,7 @@ Status legend: **pending** (no implementation yet), **wired** (test exists, no r
 |---|---|---|---|
 | M0 reproduces report Table 1 intercepts (Ge 0.646, Si 1.002, red 2.030, blue 2.796, green 2.303 eV) | `cargo test -p bgo-physics --test report_table1` | within the report's own max–min uncertainty, and ≤ 0.02 eV absolute | pending |
 | Report wavelengths follow from its measured gaps | unit test on `1239.84 / E_g` | ≤ 1 nm | pending |
-| The straight-line intercept is not the room-temperature gap | `docs/physics-audit.md` + computed comparison table | qualitative, citation-backed | pending |
+| The straight-line intercept is neither the 0 K nor the room-temperature gap | [`docs/physics-audit.md`](physics-audit.md) §3–4 + `scripts/physics-audit.py` | qualitative, citation-backed | verified (note) |
 
 ## 2. Physics and automatic differentiation
 

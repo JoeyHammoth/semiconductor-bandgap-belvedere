@@ -2,7 +2,7 @@
 
 This is the normative description of the physics and the statistical model. If code and this document disagree, one of them is a bug. The originating design document is [`source/bandgap-observatory-design.md`](../source/bandgap-observatory-design.md); this file extracts the parts that must not be re-invented per module.
 
-Status: extracted from design v2. Numbers marked **[verify]** are still awaiting the audit tracked in the Phase 0 physics audit issue.
+Status: extracted from design v2. Parameter provenance is audited in [`docs/physics-audit.md`](physics-audit.md); numbers there with a **parked** verdict must not reach public copy.
 
 ## 1. Forward model (constant-current direction)
 
@@ -44,11 +44,13 @@ Varshni:
 E_g(T) = E_g(0) − α·T² / (T + β)
 ```
 
-Bose–Einstein (single effective phonon, after Viña, Logothetidis and Cardona 1984) **[verify form and parameter definitions]**:
+Bose–Einstein (single effective phonon; gap form from O'Donnell and Chen 1991, after the critical-point treatment of Viña, Logothetidis and Cardona 1984 — see [`docs/physics-audit.md`](physics-audit.md) §6):
 
 ```
-E_g(T) = E_B − a_B·[ 1 + 2 / (exp(Θ_B / T) − 1) ]
+E_g(T) = E_g(0) − 2·a_B / (exp(Θ_B / T) − 1),        a_B = S⟨ħω⟩
 ```
+
+`E_g(0)` is the 0 K gap. The design's form `E_B − a_B[1 + 2/(exp(Θ_B/T) − 1)]` is the same curve only when `E_B = E_g(0) + a_B`; `E_B` is **not** the 0 K gap and must not be labelled as one.
 
 The two are alternatives, not nested. `M2` and `M2b` are compared by evidence and by out-of-sample prediction, never by a likelihood-ratio test.
 
@@ -81,7 +83,7 @@ Every variant shares the same data, likelihood and prior construction so that ev
 |---|---|---|
 | `E_g(0)` | wide Normal (weak) or literature-centred (informative) | both variants reported with a sensitivity flag |
 | `ln B` | weak Normal scaled by simulation | scale recorded with every run |
-| `η` | Normal(3, 0.5) | **[verify]** once mobility and diffusion-length terms are included |
+| `η` | Normal(3, 1), truncated to [1.5, 5] | illustrative, not derived: `η = 3 + γ/2` and γ is unmeasured (audit §9). The design's σ = 0.5 is too tight — ±0.5 in η moves the M0 intercept ±15 mV, more than the report's quoted uncertainty |
 | `n` | LogNormal around 1, truncated at `n ≥ 1` | by construction |
 | `R_s` | HalfNormal at rectifier scale | |
 | instrument terms | truncated from datasheets | no negative resistances or gains |
