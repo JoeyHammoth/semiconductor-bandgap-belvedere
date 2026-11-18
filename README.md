@@ -104,7 +104,7 @@ Nothing ships on trust. Each claim has a test, a tolerance and a committed artif
 |---|---|
 | M0 reproduces the report's Table 1 intercepts | unavailable — original recordings lost |
 | Report Table 1 arithmetic is internally consistent | verified (unit) |
-| MCLMC matches NumPyro NUTS on M0–M4 | pending |
+| MCLMC matches NumPyro NUTS on simulated M0–M4 | pending |
 | Nested-sampling `ln Z` matches closed form and `dynesty` | pending |
 | Neural posterior passes SBC and TARP | pending |
 | Accessibility and size budgets enforced in CI | verified (CI) |
@@ -118,7 +118,7 @@ Eight phases; the MVP is v0.1.0 at the end of Phase 3.
 | Phase | Ships |
 |---|---|
 | 0 | Walking skeleton: repo, CI/CD, Pages, tokens, data provenance audit |
-| 1 | Physics, AD, MCLMC, hero and noisy-line scenes |
+| 1 | Physics, AD, simulation reference, MCLMC, hero and noisy-line scenes |
 | 2 | Nested sampling, sloppiness, swarm, evidence ledger |
 | 3 | Neural posteriors, calibration, PWA, **v0.1.0** |
 | 4 | Thermal twin: UKF/RTS, GP discrepancy, DMDc |

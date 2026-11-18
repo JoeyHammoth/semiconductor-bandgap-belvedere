@@ -43,7 +43,7 @@ Terms used in code, issues and public copy. Keep this list short and precise; if
 
 - **Scene (S0–S10)** — one self-contained visual module with a documented data source and an accessible equivalent.
 - **Ledger (S10)** — the evidence comparison table; also the accessible form of the model comparison.
-- **Receipts** — footer showing commit hash, data hash, test status and bundle size.
+- **Receipts** — footer showing commit hash, data or simulation-manifest hash, test status and bundle size.
 - **Degradation path** — the documented fallback chain when WebGPU, workers or WASM are unavailable.
 - **Simulator mode** — the site running on labelled synthetic data and the report summary because the original recordings no longer exist.
 - **Sloppy axis** — the Fisher eigenvector along which the posterior is widest; the target of experiment design.
