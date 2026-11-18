@@ -2,7 +2,7 @@
 
 Hash-pinned diode-thermometry runs. `raw/` holds what was recorded, `clean/` holds validated SI-unit data derived from it, `schema.json` is the contract and `manifest.json` is the integrity record.
 
-Nothing here yet: the five runs (Ge, Si, red, green, blue) are recovered and validated under the Phase 0 data audit. The site must stay in simulator mode until consent and attribution are recorded.
+No run files are committed yet: the five recordings (Ge, Si, red, green, blue) are still being recovered. Consent for publication with attribution has been granted, but the site stays in simulator mode until the runs are validated and hash-pinned under the Phase 0 data audit.
 
 Rules:
 

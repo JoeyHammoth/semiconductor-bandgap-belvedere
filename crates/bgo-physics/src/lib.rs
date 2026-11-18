@@ -2,6 +2,7 @@
 //!
 //! Planned modules:
 //! - `units`: SI constants and conversions (eV <-> J, Celsius <-> kelvin)
+//! - `fit`: ordinary least squares for the lab's M0 straight line
 //! - `diode`: Shockley model, ideal constant-current voltage, series resistance
 //! - `gap`: Varshni and Bose-Einstein gap models
 //! - `lambert_w`: closed-form I(V) with series resistance
@@ -11,6 +12,10 @@
 //! can be unit-tested on the host and linked into `bgo-wasm`.
 
 #![forbid(unsafe_code)]
+
+pub mod fit;
+
+pub use fit::{fit_m0, FitError, LinearFit, Observation};
 
 /// Crate version, surfaced in the status bar and the "Receipts" footer.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

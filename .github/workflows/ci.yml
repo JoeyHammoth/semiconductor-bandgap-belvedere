@@ -56,6 +56,10 @@ jobs:
         run: npm run build
       - name: Size budgets
         run: node scripts/size-budget.mjs
+      - name: Data validation
+        run: node scripts/validate-data.mjs
+      - name: Data validation self-test
+        run: node --test scripts/validate-data.test.mjs
       - name: Data manifest check
         run: node scripts/hash-data.mjs --check
       - name: Accent contrast
