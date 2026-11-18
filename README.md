@@ -6,7 +6,7 @@
 [![deploy](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/actions/workflows/deploy.yml/badge.svg)](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/actions/workflows/deploy.yml)
 [![licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-> The site will be at **https://joeyhammoth.github.io/semiconductor-bandgap-belvedere/** once Phase 0 deploys. Until then, this repository is the deliverable.
+**Live:** https://joeyhammoth.github.io/semiconductor-bandgap-belvedere/ — Phase 0 walking skeleton. The real dataset is not published yet (consent pending), so the site runs on labelled literature parameters.
 
 ## The question
 
@@ -106,7 +106,7 @@ Nothing ships on trust. Each claim has a test, a tolerance and a committed artif
 | MCLMC matches NumPyro NUTS on M0–M4 | pending |
 | Nested-sampling `ln Z` matches closed form and `dynesty` | pending |
 | Neural posterior passes SBC and TARP | pending |
-| Accessibility and size budgets enforced in CI | wired |
+| Accessibility and size budgets enforced in CI | verified (CI) |
 
 Status values are honest: **pending** means the test does not exist yet.
 
