@@ -33,6 +33,7 @@
   --ink: oklch(0.22 0.012 265);
   --ink-dim: oklch(0.42 0.012 265);
   --hair: oklch(0 0 0 / 0.12);
+  --accent: var(--gap-colour, oklch(0.52 0.17 70));
 }
 
 *,

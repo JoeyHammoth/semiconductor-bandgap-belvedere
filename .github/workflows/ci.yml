@@ -58,6 +58,10 @@ jobs:
         run: node scripts/size-budget.mjs
       - name: Data manifest check
         run: node scripts/hash-data.mjs --check
+      - name: Accent contrast
+        run: node scripts/contrast.mjs
+      - name: Size budget self-test
+        run: node --test scripts/size-budget.test.mjs
 
   wasm:
     name: wasm
@@ -102,12 +106,12 @@ jobs:
         run: npm ci
       - name: Build core
         run: RUSTFLAGS="-C target-feature=+simd128" wasm-pack build crates/bgo-wasm --release --target web --out-dir ../../web/static/wasm
-      - name: Install browser
+      - name: Install browsers
         working-directory: web
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium firefox webkit
       - name: Run end-to-end and accessibility tests
         working-directory: web
-        run: npm run e2e -- --project=chromium
+        run: npm run e2e
       - name: Lighthouse
         working-directory: web
         run: npx --yes @lhci/cli@0.15.x autorun
