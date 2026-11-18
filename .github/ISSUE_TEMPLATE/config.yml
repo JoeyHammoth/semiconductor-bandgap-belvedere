@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Design document
+    url: https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/source/bandgap-observatory-design.md
+    about: The specification these issues implement.
+  - name: Validation plan
+    url: https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/docs/validation.md
+    about: Claims, tolerances and evidence before proposing a result.
+  - name: Security report
+    url: https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/security/policy
+    about: Report vulnerabilities privately, not as public issues.

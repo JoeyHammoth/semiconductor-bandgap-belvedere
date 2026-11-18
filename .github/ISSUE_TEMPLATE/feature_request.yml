@@ -1,0 +1,46 @@
+name: Feature request
+description: Propose a capability, scene or algorithm
+title: "[feature]: "
+labels: ["type:feature", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can a visitor not do or not understand today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: The smallest version that solves it.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: How we will know it is done, including validation evidence.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Tier
+      options:
+        - "t1: ships in the MVP"
+        - "t2: release 1.0"
+        - "t3: stretch"
+    validations:
+      required: true
+  - type: textarea
+    id: accessible
+    attributes:
+      label: Accessible equivalent
+      description: What does this look like without WebGPU, without motion, and without sight?
+    validations:
+      required: true
