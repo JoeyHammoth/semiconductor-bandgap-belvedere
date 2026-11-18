@@ -52,6 +52,8 @@ Required fields (see `data/schema.json` for the authoritative list):
 
 `scripts/hash-data.mjs` (Phase 0) rewrites `data/manifest.json` with the SHA-256 of every file under `data/raw` and `data/clean`. CI runs the same script in check mode and fails if the manifest is stale. The site footer's "Receipts" line shows the data hash alongside the commit hash.
 
+`scripts/validate-data.mjs` checks every `data/raw/*.json` against `data/schema.json` and the audit rules: the filename must match `run_id`, all sample arrays must be the same length, every run needs a non-empty sibling `.md`, and consent must be `granted` with an attribution string. Its self-tests feed malformed fixtures through the same validator in CI. `--require-complete` additionally demands all five materials; enable that flag in CI once the recordings are committed.
+
 ## 6. Known issues in the recorded data
 
 - Thermocouple sensitivity dominates the reported uncertainty; temperature is the weakest variable.
@@ -62,7 +64,7 @@ Required fields (see `data/schema.json` for the authoritative list):
 
 ## 7. Consent and attribution
 
-The dataset and figures originate in coursework. Publication requires the operator's consent and correct attribution. Until that is recorded in `data/manifest.json` (`provenance.consent`), the site must run on simulator mode only. This is tracked as a Phase 0 task.
+The dataset and figures originate in coursework. Publication consent has been granted, with attribution required; the exact attribution line is recorded in each run's `provenance.attribution` and in `data/manifest.json` once the files exist. The five original logs have not yet been supplied, so no run file is committed and the site remains in simulator mode. This is tracked as Phase 0 task #10.
 
 ## 8. Privacy
 

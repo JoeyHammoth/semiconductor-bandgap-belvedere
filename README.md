@@ -6,7 +6,7 @@
 [![deploy](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/actions/workflows/deploy.yml/badge.svg)](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/actions/workflows/deploy.yml)
 [![licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-**Live:** https://joeyhammoth.github.io/semiconductor-bandgap-belvedere/ — Phase 0 walking skeleton. The real dataset is not published yet (consent pending), so the site runs on labelled literature parameters.
+**Live:** https://joeyhammoth.github.io/semiconductor-bandgap-belvedere/ — Phase 0 walking skeleton. The real dataset is not published yet (the original logs are still being recovered), so the site runs on labelled literature parameters.
 
 ## The question
 
@@ -133,7 +133,7 @@ GitHub Pages on a free plan cannot set COOP/COEP headers, so there is no `Shared
 
 ## Data and attribution
 
-The measured runs come from a PHYC30021 lab report. Publication consent and attribution are **not yet resolved**, so the public site will run in simulator mode until they are. See [`docs/data.md`](docs/data.md). The MIT licence covers the code and original writing, not the dataset, the report text or its figures.
+The measured runs come from a PHYC30021 lab report. Publication consent has been granted with attribution; the five original logs have not yet been supplied, so the public site runs in simulator mode until they are audited and hash-pinned. See [`docs/data.md`](docs/data.md). The MIT licence covers the code and original writing, not the dataset, the report text or its figures.
 
 ## Documentation
 
