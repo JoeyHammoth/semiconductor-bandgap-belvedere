@@ -1,0 +1,3 @@
+# wasm-pack writes bgo_wasm.js, bgo_wasm_bg.wasm and .d.ts here.
+# The directory is committed so the site builds even before the core exists;
+# generated files are ignored by .gitignore.

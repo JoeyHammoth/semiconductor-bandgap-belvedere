@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Band-Gap Observatory">
+  <rect width="64" height="64" rx="14" fill="#12141b"/>
+  <rect x="12" y="16" width="40" height="7" rx="3.5" fill="#f0a92e" opacity="0.85"/>
+  <rect x="12" y="41" width="40" height="7" rx="3.5" fill="#f0a92e" opacity="0.45"/>
+  <circle cx="32" cy="32" r="4" fill="#f0a92e"/>
+</svg>
