@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { asset } from '$app/paths';
   import { onMount } from 'svelte';
   import { EnginePool, defaultPoolSize } from '../lib/engine/pool';
   import HeroGap from '../lib/scenes/HeroGap.svelte';
@@ -51,8 +50,10 @@
     if (hash) temperature = decodeState(hash).temperature;
 
     // Workers resolve relative imports against their own chunk URL, so the
-    // base must be absolute. `asset()` carries the configured base path.
-    const glue = new URL(asset('wasm/bgo_wasm.js'), window.location.href);
+    // base must be absolute. The glue is generated, so it is not part of the
+    // typed asset manifest; on this root route the document base is the app
+    // base (including any configured subpath).
+    const glue = new URL('wasm/bgo_wasm.js', document.baseURI);
     const basePath = new URL('../', glue).href.replace(/\/$/, '');
     pool = new EnginePool(defaultPoolSize(), basePath);
     void (async () => {
