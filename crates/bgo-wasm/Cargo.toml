@@ -1,0 +1,21 @@
+[package]
+name = "bgo-wasm"
+description = "WebAssembly surface for the Band-Gap Observatory core."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[package.metadata.wasm-pack.profile.release]
+# The SIMD build emits bulk-memory instructions; wasm-opt must be told to
+# accept them (design §8.3).
+wasm-opt = ["-O", "--enable-bulk-memory", "--enable-simd"]
+
+[dependencies]
+bgo-physics = { workspace = true }
+wasm-bindgen = "0.2"

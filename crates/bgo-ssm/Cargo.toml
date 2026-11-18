@@ -1,0 +1,11 @@
+[package]
+name = "bgo-ssm"
+description = "State-space thermal model, Kalman filtering and Koopman operators."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
