@@ -26,6 +26,7 @@ Self-hosted through Fontsource, Latin subset, `woff2`, `font-display: swap`. Kee
 | KaTeX | MIT | yes, lazy | fonts subset |
 | fflate | MIT | yes | permalink compression |
 | wasm-bindgen / serde-wasm-bindgen | MIT / Apache-2.0 | yes (glue) | |
+| libm | MIT OR Apache-2.0 | yes (linked into WASM) | portable `erf` used by the prior-whitening transform |
 | Playwright | Apache-2.0 | no | test only |
 | Lighthouse CI | Apache-2.0 | no | test only |
 | NumPyro, JAX, dynesty, ArviZ, PySR | Apache-2.0 / BSD / MIT | no | offline only |

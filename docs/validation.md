@@ -33,12 +33,13 @@ Table 1 intercept reproduction is not pending: it is **unavailable**. No authent
 
 | Claim | Test | Tolerance | Status |
 |---|---|---|---|
-| MCLMC matches NUTS on simulated M0–M4 | golden posteriors from NumPyro for committed synthetic configs and seeds (`refs.yml`) | mean ≤ 0.05 σ, sd ≤ 0.10 σ, max correlation difference ≤ 0.10 | wired (NUTS goldens committed; MCLMC comparison is #26) |
+| MCLMC matches NUTS on simulated M0–M4 | `cargo test -p bgo-infer --test reference_posteriors`; production defaults (4 chains, 5000 warmup, 4000 draws, target 0.995, 16 mean trajectory steps) against the committed NumPyro summaries | mean ≤ 0.05 σ, sd ≤ 0.10 σ, max correlation difference ≤ 0.10 | verified (unit; all six cases pass locally) |
 | Coverage is nominal | 200+ simulated replications | 95% interval covers in 93–97% | pending |
 | Nested sampling `ln Z` is correct | closed-form Gaussian evidence | ≤ 0.2 nats | pending |
 | Nested sampling agrees with `dynesty` | simulated data, committed dynesty output | ≤ 0.3 nats | pending |
 | Replicate scatter matches theory | several independent runs | observed sd within 2× of `sqrt(H/N)` | pending |
-| Diagnostics are honest | deliberately broken chains | R-hat/ESS flags fail the converged badge | pending |
+| Diagnostics are honest | `cargo test -p bgo-infer --test diagnostics_contract`; deliberately broken chains | R-hat/ESS/energy/divergence gates fail the converged badge | verified (unit) |
+| M2 fixed-point target matches NumPyro | `cargo test -p bgo-infer --test target_parity`; latent transform, AD gradient and one log-density difference | gradient rel. error ≤ 1e-5; log-density difference ≤ 1e-5 | verified (unit) |
 | M0–M4 reproduce from config + seed | `uv run pytest`; regenerate with `--all`; `uv run python -m bgo_train.reference --check` | config/seed hashes match and every committed summary passes zero divergences, R-hat < 1.01, ESS > 400 | verified (committed references) |
 | Report-anchored cases are visibly synthetic | manifest and per-case `synthetic`, `anchor.label`, and notes | no measured-data or Table 1 reproduction claim | verified (committed references) |
 | No reconstructed or hash-pinned raw run | manifest records config/seed hashes only; `data/manifest.json` remains empty | no data hash, no `data/raw` output | verified (audit + references) |

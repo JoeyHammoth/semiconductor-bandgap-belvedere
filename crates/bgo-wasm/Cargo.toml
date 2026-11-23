@@ -16,8 +16,14 @@ crate-type = ["cdylib", "rlib"]
 [package.metadata.wasm-pack.profile.release]
 # The SIMD build emits bulk-memory instructions; wasm-opt must be told to
 # accept them (design §8.3).
-wasm-opt = ["-O", "--enable-bulk-memory", "--enable-simd"]
+wasm-opt = [
+  "-O",
+  "--enable-bulk-memory",
+  "--enable-simd",
+  "--enable-nontrapping-float-to-int",
+]
 
 [dependencies]
+bgo-infer = { workspace = true }
 bgo-physics = { workspace = true }
 wasm-bindgen = "0.2"

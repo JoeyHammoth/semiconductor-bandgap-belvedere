@@ -9,3 +9,7 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+bgo-ad = { workspace = true }
+
+[dev-dependencies]
+serde_json = "1.0"
