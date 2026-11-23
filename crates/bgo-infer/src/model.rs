@@ -359,7 +359,7 @@ impl Case {
     }
 
     pub fn logp_and_grad(&self, theta: &[f64]) -> (f64, Vec<f64>) {
-        let value = self.logp(theta);
+        let mut value = f64::NAN;
         let mut gradient = vec![0.0; theta.len()];
         for index in 0..theta.len() {
             let mut dual = theta
@@ -368,7 +368,11 @@ impl Case {
                 .map(Dual::constant)
                 .collect::<Vec<_>>();
             dual[index] = Dual::variable(theta[index]);
-            gradient[index] = self.logp(&dual).du;
+            let evaluation = self.logp(&dual);
+            if index == 0 {
+                value = evaluation.value();
+            }
+            gradient[index] = evaluation.du;
         }
         (value, gradient)
     }

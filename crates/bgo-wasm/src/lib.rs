@@ -6,7 +6,7 @@
 
 #![forbid(unsafe_code)]
 
-use bgo_infer::{Case, MclmcConfig, MclmcOutput, Model};
+use bgo_infer::{bulk_ess, split_rhat, Case, Diagnostics, MclmcConfig, MclmcOutput, Model};
 use wasm_bindgen::prelude::*;
 
 /// Core version, rendered in the status bar.
@@ -120,6 +120,99 @@ impl SamplerOutput {
     }
 }
 
+/// Diagnostics for chains sampled independently in different workers.
+///
+/// `draws` is chain-major and, within each chain, parameter-major:
+/// `[chain][parameter][draw]`. R-hat and bulk ESS are computed in Rust so the
+/// browser cannot substitute its own convergence verdict.
+#[wasm_bindgen]
+pub struct DiagnosticsOutput {
+    diagnostics: Diagnostics,
+}
+
+#[wasm_bindgen]
+impl DiagnosticsOutput {
+    #[wasm_bindgen(getter)]
+    pub fn rhat(&self) -> Vec<f64> {
+        self.diagnostics.rhat.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn ess_bulk(&self) -> Vec<f64> {
+        self.diagnostics.ess_bulk.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn rhat_max(&self) -> f64 {
+        self.diagnostics.rhat_max
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn ess_bulk_min(&self) -> f64 {
+        self.diagnostics.ess_bulk_min
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn energy_error_mean(&self) -> f64 {
+        self.diagnostics.energy_error_mean
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn divergences(&self) -> u32 {
+        self.diagnostics.divergences as u32
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn passes(&self) -> bool {
+        self.diagnostics.passes
+    }
+}
+
+#[wasm_bindgen]
+pub fn diagnose_chains(
+    chains: u32,
+    parameter_count: u32,
+    draws_per_chain: u32,
+    draws: &[f64],
+    energy_error_mean: f64,
+    divergences: u32,
+) -> Result<DiagnosticsOutput, JsValue> {
+    let chains = chains as usize;
+    let parameter_count = parameter_count as usize;
+    let draws_per_chain = draws_per_chain as usize;
+    if chains == 0 || parameter_count == 0 || draws_per_chain < 2 {
+        return Err(JsValue::from_str("invalid chain dimensions"));
+    }
+    let expected = chains
+        .checked_mul(parameter_count)
+        .and_then(|value| value.checked_mul(draws_per_chain))
+        .ok_or_else(|| JsValue::from_str("chain dimensions overflow"))?;
+    if draws.len() != expected {
+        return Err(JsValue::from_str(
+            "chain draw count does not match dimensions",
+        ));
+    }
+    let mut parameters = vec![vec![Vec::with_capacity(draws_per_chain); chains]; parameter_count];
+    let chain_stride = parameter_count * draws_per_chain;
+    for (chain, chain_draws) in draws.chunks_exact(chain_stride).enumerate() {
+        for (parameter, values) in parameters.iter_mut().enumerate() {
+            let start = parameter * draws_per_chain;
+            values[chain].extend_from_slice(&chain_draws[start..start + draws_per_chain]);
+        }
+    }
+
+    let rhat = parameters.iter().map(|values| split_rhat(values)).collect();
+    let ess_bulk = parameters.iter().map(|values| bulk_ess(values)).collect();
+    Ok(DiagnosticsOutput {
+        diagnostics: Diagnostics::from_parameters(
+            rhat,
+            ess_bulk,
+            energy_error_mean,
+            divergences as usize,
+        ),
+    })
+}
+
 fn model_from_name(name: &str) -> Result<Model, String> {
     match name.to_ascii_uppercase().as_str() {
         "M0" => Ok(Model::M0),
@@ -216,6 +309,21 @@ mod tests {
     #[test]
     fn version_is_reported() {
         assert!(core_version().starts_with("bgo-wasm"));
+    }
+
+    #[test]
+    fn diagnostics_accept_chain_major_parameter_major_draws() {
+        // Two chains, one parameter, four draws per chain. The exact pass/fail
+        // value is not the point here; the layout and lengths are.
+        let draws = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
+        let output = diagnose_chains(2, 1, 4, &draws, 0.01, 0).expect("diagnostics");
+        assert_eq!(output.rhat().len(), 1);
+        assert_eq!(output.ess_bulk().len(), 1);
+        assert_eq!(output.energy_error_mean(), 0.01);
+        assert_eq!(output.divergences(), 0);
+
+        let broken = diagnose_chains(2, 1, 4, &draws, 0.01, 1).expect("diagnostics");
+        assert!(!broken.passes());
     }
 
     #[test]

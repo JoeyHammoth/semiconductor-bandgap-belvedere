@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 import { loadCore } from './core';
-import type { CoreModule, Request, Response, SamplerResult } from './protocol';
+import type { CoreModule, DiagnosticsResult, Request, Response, SamplerResult } from './protocol';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -49,6 +49,34 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
           ),
         });
         break;
+      case 'diagnostics': {
+        const output = module.diagnose_chains(
+          request.chains,
+          request.parameterCount,
+          request.drawsPerChain,
+          request.draws,
+          request.energyErrorMean,
+          request.divergences,
+        );
+        try {
+          const value: DiagnosticsResult = {
+            rhat: output.rhat,
+            essBulk: output.ess_bulk,
+            rhatMax: output.rhat_max,
+            essBulkMin: output.ess_bulk_min,
+            energyErrorMean: output.energy_error_mean,
+            divergences: output.divergences,
+            passes: output.passes,
+          };
+          reply({ id: request.id, ok: true, kind: 'diagnostics', value }, [
+            value.rhat.buffer as ArrayBuffer,
+            value.essBulk.buffer as ArrayBuffer,
+          ]);
+        } finally {
+          output.free();
+        }
+        break;
+      }
       case 'sampler': {
         const output = module.run_sampler(
           request.model,

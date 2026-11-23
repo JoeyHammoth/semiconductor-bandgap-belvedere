@@ -184,6 +184,8 @@ struct ChainSampler<'a> {
     logp: f64,
     gradient: Vec<f64>,
     momentum: Vec<f64>,
+    normalized: Vec<f64>,
+    raw: Vec<f64>,
     step_size: f64,
     dual_averaging: DualAveraging,
     acceptance_sum: f64,
@@ -212,6 +214,8 @@ impl<'a> ChainSampler<'a> {
             logp,
             gradient,
             momentum,
+            normalized: vec![0.0; dimension],
+            raw: vec![0.0; dimension],
             step_size: config.initial_step,
             dual_averaging: DualAveraging::new(config.initial_step, config.target_accept),
             acceptance_sum: 0.0,
@@ -262,8 +266,14 @@ impl<'a> ChainSampler<'a> {
         for _ in 0..steps {
             for (index, coefficient) in COEFFICIENTS.iter().enumerate() {
                 if index % 2 == 0 {
-                    energy_error +=
-                        momentum_update(&mut momentum, &gradient, self.step_size, *coefficient);
+                    energy_error += momentum_update(
+                        &mut momentum,
+                        &gradient,
+                        self.step_size,
+                        *coefficient,
+                        &mut self.normalized,
+                        &mut self.raw,
+                    );
                 } else {
                     for (value, velocity) in z.iter_mut().zip(&momentum) {
                         *value += self.step_size * coefficient * velocity;
@@ -642,12 +652,16 @@ impl Preconditioner {
     }
 
     fn logp_and_grad(&self, case: &Case, z: &[f64]) -> (f64, Vec<f64>) {
-        let value = case.logp(&self.theta(z));
+        let mut value = f64::NAN;
         let mut gradient = vec![0.0; z.len()];
         for index in 0..z.len() {
             let mut dual = z.iter().copied().map(Dual::constant).collect::<Vec<_>>();
             dual[index] = Dual::variable(z[index]);
-            gradient[index] = self.logp(case, &dual).du;
+            let evaluation = self.logp(case, &dual);
+            if index == 0 {
+                value = evaluation.value();
+            }
+            gradient[index] = evaluation.du;
         }
         (value, gradient)
     }
@@ -671,6 +685,8 @@ fn momentum_update(
     gradient: &[f64],
     step_size: f64,
     coefficient: f64,
+    normalized: &mut [f64],
+    raw: &mut [f64],
 ) -> f64 {
     let dimension = momentum.len();
     let norm = gradient
@@ -681,18 +697,16 @@ fn momentum_update(
     if !norm.is_finite() || norm < 1e-300 {
         return 0.0;
     }
-    let normalized = gradient
-        .iter()
-        .map(|value| value / norm)
-        .collect::<Vec<_>>();
+    for (unit, value) in normalized.iter_mut().zip(gradient) {
+        *unit = value / norm;
+    }
     let projection = momentum
         .iter()
-        .zip(&normalized)
+        .zip(normalized.iter())
         .map(|(left, right)| left * right)
         .sum::<f64>();
     let delta = step_size * coefficient * norm / (dimension - 1) as f64;
     let zeta = (-delta).exp();
-    let mut raw = vec![0.0; dimension];
     for index in 0..dimension {
         raw[index] = normalized[index] * (1.0 - zeta) * (1.0 + zeta + projection * (1.0 - zeta))
             + 2.0 * zeta * momentum[index];
@@ -701,22 +715,21 @@ fn momentum_update(
     if !raw_norm.is_finite() || raw_norm < 1e-300 {
         return 0.0;
     }
-    let old = momentum.to_vec();
-    for (value, raw) in momentum.iter_mut().zip(&raw) {
-        *value = raw / raw_norm;
-    }
     let s_plus = 0.5
-        * old
+        * momentum
             .iter()
-            .zip(&normalized)
-            .map(|(left, right)| (left + right).powi(2))
+            .zip(normalized.iter())
+            .map(|(left, right)| (left + right) * (left + right))
             .sum::<f64>();
     let s_minus = 0.5
-        * old
+        * momentum
             .iter()
-            .zip(&normalized)
-            .map(|(left, right)| (left - right).powi(2))
+            .zip(normalized.iter())
+            .map(|(left, right)| (left - right) * (left - right))
             .sum::<f64>();
+    for (value, raw) in momentum.iter_mut().zip(raw.iter()) {
+        *value = raw / raw_norm;
+    }
     let log_a = if zeta * zeta <= 1.0 {
         (s_plus * (1.0 - zeta * zeta) + 2.0 * zeta * zeta)
             .max(1e-300)
