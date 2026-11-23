@@ -133,7 +133,7 @@ impl Case {
                     physical[0] - physical[2] * high_gap,
                     physical[1],
                     physical[3],
-                    physical[4],
+                    0.0,
                 ]
             }
             Model::M3 => {
@@ -223,9 +223,8 @@ impl Case {
 
         let alpha = (theta[0] - theta[1]) / denominator;
         let eg0 = theta[0] + alpha * low_gap;
-        let mut physical = vec![eg0, theta[2], alpha, beta];
-        physical.extend_from_slice(&theta[4..]);
-        physical
+        let eta = eta_from_latent(theta[4]);
+        vec![eg0, theta[2], alpha, beta, eta]
     }
 
     pub(crate) fn prior_residual(&self, theta: &[f64]) -> Vec<f64> {
@@ -288,7 +287,7 @@ impl Case {
                     reported[0] - alpha * high_gap,
                     reported[1] + reported[2] * REFERENCE_TEMPERATURE_K.ln(),
                     beta,
-                    reported[2],
+                    eta_to_latent(reported[2]),
                 ]
             }
             Model::M3 | Model::M4 => {
@@ -543,6 +542,7 @@ impl Case {
                 let ln_b_ref = theta[1];
                 let alpha = theta[2];
                 let beta = theta[3];
+                let eta_latent = latent[4];
                 let eta = theta[4];
                 if !in_bounds(eg, 0.05, 3.5)
                     || !in_bounds(alpha, 0.0, 2.0e-3)
@@ -556,7 +556,8 @@ impl Case {
                     + normal_prior(ln_b_ref, 8.0, 8.0)
                     + normal_prior(alpha, 7.021e-4, 1.0e-4)
                     + normal_prior(beta, 1108.0, 150.0)
-                    + normal_prior(eta, 3.0, 1.0);
+                    + normal_prior(eta, 3.0, 1.0)
+                    + eta_log_jacobian(eta_latent);
                 (
                     eg,
                     ln_b_ref,
@@ -669,6 +670,23 @@ fn normal_prior<T: Scalar>(value: T, location: f64, scale: f64) -> T {
 
 fn normal_cdf<T: Scalar>(value: T) -> T {
     T::from_f64(0.5) * (T::from_f64(1.0) + (value / T::from_f64(std::f64::consts::SQRT_2)).erf())
+}
+
+/// Map the unconstrained M2 `eta` coordinate to the truncated support
+/// `[1.5, 5]`. The target adds `ln(d eta / du)` so the transform is exact.
+fn eta_from_latent<T: Scalar>(u: T) -> T {
+    T::from_f64(1.5) + T::from_f64(3.5) * normal_cdf(u)
+}
+
+fn eta_to_latent(eta: f64) -> f64 {
+    let probability = ((eta - 1.5) / 3.5).clamp(1.0e-12, 1.0 - 1.0e-12);
+    inverse_normal_cdf_scalar(probability)
+}
+
+fn eta_log_jacobian<T: Scalar>(u: T) -> T {
+    T::from_f64(3.5_f64.ln())
+        - T::from_f64(0.5) * u * u
+        - T::from_f64(0.5 * (2.0 * std::f64::consts::PI).ln())
 }
 
 /// Map a standard-normal coordinate to a half-normal(10) draw.
