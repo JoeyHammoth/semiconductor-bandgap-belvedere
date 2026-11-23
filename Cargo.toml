@@ -20,7 +20,10 @@ license = "MIT"
 repository = "https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere"
 
 [workspace.dependencies]
+bgo-ad = { path = "crates/bgo-ad" }
+bgo-infer = { path = "crates/bgo-infer" }
 bgo-physics = { path = "crates/bgo-physics" }
+libm = "0.2"
 
 [profile.release]
 opt-level = "z"

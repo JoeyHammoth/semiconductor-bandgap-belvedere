@@ -211,6 +211,12 @@ impl Scalar for HyperDual {
         )
     }
 
+    fn erf(self) -> Self {
+        let first = 2.0 / std::f64::consts::PI.sqrt() * (-self.re * self.re).exp();
+        let second = -2.0 * self.re * first;
+        self.unary(libm::erf, |_| first, |_| second)
+    }
+
     fn powi(self, exponent: i32) -> Self {
         if exponent == 0 {
             return Self::constant(1.0);

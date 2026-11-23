@@ -152,6 +152,14 @@ impl Scalar for Dual {
         }
     }
 
+    fn erf(self) -> Self {
+        let derivative = 2.0 / std::f64::consts::PI.sqrt() * (-self.re * self.re).exp();
+        Self {
+            re: libm::erf(self.re),
+            du: derivative * self.du,
+        }
+    }
+
     fn powi(self, exponent: i32) -> Self {
         if exponent == 0 {
             return Self::constant(1.0);

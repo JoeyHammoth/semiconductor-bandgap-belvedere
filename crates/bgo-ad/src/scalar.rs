@@ -26,6 +26,7 @@ pub trait Scalar:
     fn sin(self) -> Self;
     fn cos(self) -> Self;
     fn tanh(self) -> Self;
+    fn erf(self) -> Self;
     fn powi(self, exponent: i32) -> Self;
     fn powf(self, exponent: Self) -> Self;
     fn abs(self) -> Self;
@@ -66,6 +67,10 @@ impl Scalar for f64 {
 
     fn tanh(self) -> Self {
         f64::tanh(self)
+    }
+
+    fn erf(self) -> Self {
+        libm::erf(self)
     }
 
     fn powi(self, exponent: i32) -> Self {

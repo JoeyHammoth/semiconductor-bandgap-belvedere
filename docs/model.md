@@ -71,6 +71,26 @@ Every variant shares the same data, likelihood and prior construction so that ev
 
 Reference convention for M3/M4: with one constant-current temperature sweep, `η` and the terminal ideality `n` are nearly degenerate. The committed M3/M4 reference cases therefore hold `η` at the illustrative central value 3.0 and infer `n` (and, for M4, `R_s`); M1/M2 infer `η`. This is a stated simulation convention, not a measured constraint. A future multi-current design can free both without that degeneracy.
 
+### 3.1 Sampling coordinates
+
+The browser sampler does not propose directly in `(E_g(0), α, β, n, R_s)`. For M2–M4 it samples the gap at the two temperature endpoints, `E_g(T_low)` and `E_g(T_high)`, plus `β`. For M3/M4 it also samples `n·E_g` and `n·ln B_ref` so ideality does not create a multiplicative ridge. The change of variables is exact and its Jacobian is included in the target; `reported` maps every draw back to the reference parameter names.
+
+M4 has an additional near-degeneracy: at fixed current, `R_s` enters the voltage as the constant offset `I·R_s`, while `E_g(0)` also shifts the whole curve. The sampler therefore uses
+
+```
+E_g_eff = E_g(0) + I·R_s
+```
+
+as the effective gap and samples `R_s` through the prior-whitened coordinate
+
+```
+R_s = 10·Φ⁻¹((1 + Φ(z))/2),    z ~ Normal(0, 1),
+```
+
+where `Φ` is the standard-normal CDF. This is the half-normal(10) quantile transform of `Φ(z)`; the standard-normal prior on `z` is the transformed `R_s` prior, so no extra `ln R_s` Jacobian is added. The likelihood still uses the physical `R_s`. M2/M3/M4 also use a pilot run for covariance adaptation during warmup; the pilot draws are discarded.
+
+The production sampler defaults are 4 chains, 5000 warmup draws per chain, 4000 retained draws per chain, target acceptance 0.995 and a mean trajectory length of 16 integrator steps. These are validation settings, not a claim that every model is cheap: M4 is the slowest case.
+
 ## 4. Instrument model
 
 - **ADC (ADS1115):** signed 16-bit, `LSB = FSR / 32768` (125 µV at ±4.096 V); quantisation `σ_q = LSB/√12` plus a fitted noise floor.
@@ -106,3 +126,4 @@ Voltage residuals are modelled as Gaussian with an instrument-derived scale plus
 - `ln T` and `ln B` require positive quantities; parameters are sampled unconstrained and transformed with Jacobians.
 - All random draws are seeded; seeds are part of the view state and of every validation run.
 - Floating point: `f64` in Rust core and Python references; `f32` only at the WebGPU/visual boundary.
+- The fail-closed diagnostic gate is `R-hat < 1.01`, bulk ESS `> 400`, mean energy error `< 0.1`, and zero divergences. A failed gate must not render a converged state.

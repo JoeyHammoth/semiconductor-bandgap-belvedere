@@ -1,9 +1,9 @@
 import { compileCore } from './core';
-import type { Request, Response } from './protocol';
+import type { Request, Response, SamplerRequest, SamplerResult } from './protocol';
 
 export interface EngineSuccess {
   ok: true;
-  value?: number | string;
+  value?: number | string | SamplerResult;
 }
 
 export interface EngineFailure {
@@ -152,6 +152,10 @@ export class EnginePool {
 
   varshni(eg0: number, alpha: number, beta: number, temperature: number) {
     return this.#send({ kind: 'varshni', eg0, alpha, beta, temperature });
+  }
+
+  sampler(request: SamplerRequest) {
+    return this.#send({ kind: 'sampler', ...request });
   }
 
   async warm() {
