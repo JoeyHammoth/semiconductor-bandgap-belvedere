@@ -73,7 +73,7 @@ Reference convention for M3/M4: with one constant-current temperature sweep, `η
 
 ### 3.1 Sampling coordinates
 
-The browser sampler does not propose directly in `(E_g(0), α, β, n, R_s)`. For M2–M4 it samples the gap at the two temperature endpoints, `E_g(T_low)` and `E_g(T_high)`, plus `β`. For M3/M4 it also samples `n·E_g` and `n·ln B_ref` so ideality does not create a multiplicative ridge. The change of variables is exact and its Jacobian is included in the target; `reported` maps every draw back to the reference parameter names.
+The browser sampler does not propose directly in `(E_g(0), α, β, n, R_s)`. For M2–M4 it samples the gap at the two temperature endpoints, `E_g(T_low)` and `E_g(T_high)`, plus `β`. For M3/M4 it also samples `n·E_g` and `n·ln B_ref` so ideality does not create a multiplicative ridge. M2 samples `η` through a probit transform on `[1.5, 5]` with its Jacobian, so a proposal cannot leave the truncated prior and be logged as a spurious divergence. The change of variables is exact and its Jacobian is included in the target; `reported` maps every draw back to the reference parameter names.
 
 M4 has an additional near-degeneracy: at fixed current, `R_s` enters the voltage as the constant offset `I·R_s`, while `E_g(0)` also shifts the whole curve. The sampler therefore uses
 
