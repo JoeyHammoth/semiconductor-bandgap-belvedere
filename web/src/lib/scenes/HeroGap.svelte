@@ -22,6 +22,11 @@
 
   onMount(() => {
     reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) {
+      backend = 'static';
+      onbackend('static');
+      return;
+    }
     let dispose = () => {};
     let cancelled = false;
 
