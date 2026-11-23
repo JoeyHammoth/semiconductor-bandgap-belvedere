@@ -106,6 +106,7 @@
     <nav aria-label="Sections">
       <a href="#question">Question</a>
       <a href="#method">Method</a>
+      <a href="infer/">Infer</a>
       <a href="#honesty">Honesty</a>
       <a href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere#readme">Docs</a>
       <button class="theme" type="button" onclick={toggleTheme} aria-pressed={daylight}>
@@ -279,15 +280,15 @@
     <section class="next" aria-labelledby="n-title">
       <h2 id="n-title">Status</h2>
       <p>
-        Phase 0 — walking skeleton. The repository, CI, physics audit and data-provenance audit
-        are complete. The original recordings no longer exist, so later scenes use labelled
-        simulated and report-anchored data. Full plan in
+        Phase 1 — physics, AD and the simulation-first sampler. The synthetic M0–M4 references,
+        fail-closed diagnostics, MCLMC and the infer view are in place. The original recordings no
+        longer exist, so later scenes use labelled simulated and report-anchored data. Full plan in
         <a href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/docs/roadmap.md">the roadmap</a>.
       </p>
     </section>
   </main>
 
-  <StatusBar {backend} {core} phase="Phase 0" {commit} />
+  <StatusBar {backend} {core} phase="Phase 1" {commit} />
 </div>
 
 <style>

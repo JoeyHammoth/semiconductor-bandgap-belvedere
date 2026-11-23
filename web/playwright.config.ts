@@ -1,8 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const port = Number(process.env.PLAYWRIGHT_PORT ?? 4173);
 const baseURL = process.env.BASE_PATH
-  ? `http://localhost:4173${process.env.BASE_PATH}`
-  : 'http://localhost:4173';
+  ? `http://localhost:${port}${process.env.BASE_PATH}`
+  : `http://localhost:${port}`;
 
 export default defineConfig({
   testDir: './tests',
@@ -20,8 +21,8 @@ export default defineConfig({
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ],
   webServer: {
-    command: 'npm run build && npm run preview -- --port 4173',
-    port: 4173,
+    command: `npm run build && npm run preview -- --port ${port}`,
+    port,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
   },
