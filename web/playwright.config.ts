@@ -1,9 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const port = Number(process.env.PLAYWRIGHT_PORT ?? 4173);
-const baseURL = process.env.BASE_PATH
-  ? `http://localhost:${port}${process.env.BASE_PATH}`
-  : `http://localhost:${port}`;
+const basePath = (process.env.BASE_PATH ?? '').replace(/\/+$/, '');
+const baseURL = `http://localhost:${port}${basePath}/`;
 
 export default defineConfig({
   testDir: './tests',

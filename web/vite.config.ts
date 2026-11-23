@@ -2,6 +2,8 @@ import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
+const basePath = (process.env.BASE_PATH ?? '').replace(/\/+$/, '');
+
 export default defineConfig({
   plugins: [
     sveltekit({
@@ -13,7 +15,7 @@ export default defineConfig({
         strict: true,
       }),
       paths: {
-        base: (process.env.BASE_PATH ?? '') as '' | `/${string}`,
+        base: basePath as '' | `/${string}`,
       },
       prerender: {
         handleHttpError: 'warn',
