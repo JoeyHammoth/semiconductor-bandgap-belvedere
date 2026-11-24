@@ -101,8 +101,8 @@ Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff
 | S4 recomputes Fisher information when the temperature range changes | Playwright `/evidence/`; low bound 220 → 260 K | summary and condition number update | verified (Chromium e2e + a11y) |
 | `/evidence` has no serious axe violations | Playwright + axe-core on `/evidence/` | zero serious/critical | verified (Chromium e2e + a11y) |
 | Evidence ledger publishes evidence, Bayes factor, PSIS-LOO SE, Pareto-k and prior-sensitivity flag | committed [`evidence-ledger.json`](../web/static/data/evidence-ledger.json); Playwright `/ledger/` | synthetic contract; M0 Pareto-k > 0.7 shown, not hidden | verified (artifact + Chromium e2e) |
-| Committed evidence ledger matches a fresh regeneration | `.github/workflows/ledger.yml`; `python -m bgo_train.evidence --check` | engine/ArviZ and settings exact; `ln Z` 0.5 nat; ELPD 5; Pareto-k 0.1 | wired (workflow; first run pending) |
-| S2 scrubber and S4 sliders are keyboard operable | Playwright `/evidence/`; Home/End and arrow keys | frame, temperature bounds and Fisher summary update | wired (e2e; first run pending) |
+| Committed evidence ledger matches a fresh regeneration | `.github/workflows/ledger.yml`; `python -m bgo_train.evidence --check` | engine/ArviZ and settings exact; `ln Z` 0.5 nat; ELPD 5; Pareto-k 0.1 | verified (CI; fresh regeneration) |
+| S2 scrubber and S4 sliders are keyboard operable | Playwright `/evidence/`; Home/End and arrow keys | frame, temperature bounds and Fisher summary update | verified (CI e2e; Chromium, Firefox, WebKit) |
 | `/ledger` has no serious axe violations | Playwright + axe-core on `/ledger/` | zero serious/critical | verified (Chromium e2e + a11y) |
 
 ## 8. How to run
