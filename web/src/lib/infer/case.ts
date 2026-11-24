@@ -61,12 +61,7 @@ export const PRODUCTION_SAMPLER: ProductionSampler = {
   energyErrorLimit: 0.1,
 };
 
-export function wasmBase(): string {
-  // `/infer/` is one level below the app root, including any configured base path.
-  const root = new URL('..', window.location.href);
-  const glue = new URL('wasm/bgo_wasm.js', root);
-  return new URL('..', glue).href.replace(/\/$/, '');
-}
+export { wasmBase } from '../engine/base';
 
 export async function loadInferCase(): Promise<InferCase> {
   const url = new URL('../data/m0-report-si.json', window.location.href);

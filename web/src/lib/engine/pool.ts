@@ -1,6 +1,8 @@
 import { compileCore } from './core';
 import type {
   DiagnosticsResult,
+  FisherResult,
+  NestedTraceResult,
   PredictiveRequest,
   PredictiveResult,
   Request,
@@ -11,7 +13,14 @@ import type {
 
 export interface EngineSuccess {
   ok: true;
-  value?: number | string | SamplerResult | DiagnosticsResult | PredictiveResult;
+  value?:
+    | number
+    | string
+    | SamplerResult
+    | DiagnosticsResult
+    | PredictiveResult
+    | FisherResult
+    | NestedTraceResult;
 }
 
 export interface EngineFailure {
@@ -89,9 +98,12 @@ export class EnginePool {
 
   #postInit(worker: Worker) {
     const id = this.#nextId++;
-    worker.postMessage(
-      { id, kind: 'init', base: this.#base, module: this.#module ?? undefined } satisfies Request,
-    );
+    worker.postMessage({
+      id,
+      kind: 'init',
+      base: this.#base,
+      module: this.#module ?? undefined,
+    } satisfies Request);
   }
 
   async #prime() {
@@ -129,7 +141,8 @@ export class EnginePool {
 
   #send(request: RequestBody, timeoutMs = this.#timeoutMs): Promise<EngineResult> {
     if (this.#disposed) return Promise.resolve({ ok: false, error: 'engine disposed' });
-    if (this.#workers.length === 0) return Promise.resolve({ ok: false, error: 'no engine workers' });
+    if (this.#workers.length === 0)
+      return Promise.resolve({ ok: false, error: 'no engine workers' });
 
     const worker = this.#workers[this.#cursor % this.#workers.length];
     this.#cursor += 1;
@@ -168,6 +181,20 @@ export class EnginePool {
 
   posteriorPredictive(request: PredictiveRequest) {
     return this.#send({ kind: 'predictive', ...request }, 120_000);
+  }
+
+  fisherReport(request: {
+    model: string;
+    temperatureK: Float64Array;
+    currentA: number;
+    sigmaV: number;
+    reported: Float64Array;
+  }) {
+    return this.#send({ kind: 'fisher', ...request }, 30_000);
+  }
+
+  nestedEvidence(livePoints: number, seed: number, timeoutMs = 120_000) {
+    return this.#send({ kind: 'nested', livePoints, seed }, timeoutMs);
   }
 
   /**
@@ -233,15 +260,11 @@ export class EnginePool {
       for (let parameter = 0; parameter < parameterCount; parameter += 1) {
         const source = chain * chainDrawsLength + parameter * drawsPerChain;
         const target = parameter * chains * drawsPerChain + chain * drawsPerChain;
-        combinedDraws.set(
-          chainDraws.subarray(source, source + drawsPerChain),
-          target,
-        );
+        combinedDraws.set(chainDraws.subarray(source, source + drawsPerChain), target);
       }
     }
 
-    const energyErrorMean =
-      values.reduce((sum, value) => sum + value.energyErrorMean, 0) / chains;
+    const energyErrorMean = values.reduce((sum, value) => sum + value.energyErrorMean, 0) / chains;
     const divergences = values.reduce((sum, value) => sum + value.divergences, 0);
     const diagnosticResult = await this.#send(
       {
@@ -274,8 +297,7 @@ export class EnginePool {
         energyErrorMean: diagnostics.energyErrorMean,
         divergences: diagnostics.divergences,
         passes: diagnostics.passes,
-        acceptanceRate:
-          values.reduce((sum, value) => sum + value.acceptanceRate, 0) / chains,
+        acceptanceRate: values.reduce((sum, value) => sum + value.acceptanceRate, 0) / chains,
         stepSize: values.reduce((sum, value) => sum + value.stepSize, 0) / chains,
       },
     };

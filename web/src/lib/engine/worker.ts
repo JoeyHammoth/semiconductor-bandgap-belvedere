@@ -3,6 +3,8 @@ import { loadCore } from './core';
 import type {
   CoreModule,
   DiagnosticsResult,
+  FisherResult,
+  NestedTraceResult,
   PredictiveResult,
   Request,
   Response,
@@ -48,12 +50,7 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
           id: request.id,
           ok: true,
           kind: 'varshni',
-          value: module.varshni_gap(
-            request.eg0,
-            request.alpha,
-            request.beta,
-            request.temperature,
-          ),
+          value: module.varshni_gap(request.eg0, request.alpha, request.beta, request.temperature),
         });
         break;
       case 'diagnostics': {
@@ -112,6 +109,74 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             value.q50.buffer as ArrayBuffer,
             value.q95.buffer as ArrayBuffer,
             value.lines.buffer as ArrayBuffer,
+          ]);
+        } finally {
+          output.free();
+        }
+        break;
+      }
+      case 'fisher': {
+        const output = module.fisher_report(
+          request.model,
+          request.temperatureK,
+          request.currentA,
+          request.sigmaV,
+          request.reported,
+        );
+        try {
+          const value: FisherResult = {
+            parameterNames: output.parameter_names.split(',').filter(Boolean),
+            parameterCount: output.parameter_count,
+            covariance: output.covariance,
+            eigenvalues: output.eigenvalues,
+            eigenvectors: output.eigenvectors,
+            conditionNumber: output.condition_number,
+            stiffestIndex: output.stiffest_index,
+            sloppiestIndex: output.sloppiest_index,
+            ellipse1: output.ellipse_1,
+            ellipse2: output.ellipse_2,
+          };
+          reply({ id: request.id, ok: true, kind: 'fisher', value }, [
+            value.covariance.buffer as ArrayBuffer,
+            value.eigenvalues.buffer as ArrayBuffer,
+            value.eigenvectors.buffer as ArrayBuffer,
+            value.ellipse1.buffer as ArrayBuffer,
+            value.ellipse2.buffer as ArrayBuffer,
+          ]);
+        } finally {
+          output.free();
+        }
+        break;
+      }
+      case 'nested': {
+        const output = module.run_nested_gaussian(request.livePoints, request.seed);
+        try {
+          const value: NestedTraceResult = {
+            logEvidence: output.log_evidence,
+            logEvidenceError: output.log_evidence_error,
+            expectedLogEvidence: output.expected_log_evidence,
+            information: output.information,
+            iterations: output.iterations,
+            converged: output.converged,
+            livePoints: output.live_points,
+            frameCount: output.frame_count,
+            parameterNames: output.parameter_names.split(',').filter(Boolean),
+            eventIterations: output.event_iterations,
+            eventLogEvidence: output.event_log_evidence,
+            eventThresholds: output.event_thresholds,
+            eventLogPriorVolume: output.event_log_prior_volume,
+            livePositions: output.live_positions,
+            priorLow: output.prior_low,
+            priorHigh: output.prior_high,
+          };
+          reply({ id: request.id, ok: true, kind: 'nested', value }, [
+            value.eventIterations.buffer as ArrayBuffer,
+            value.eventLogEvidence.buffer as ArrayBuffer,
+            value.eventThresholds.buffer as ArrayBuffer,
+            value.eventLogPriorVolume.buffer as ArrayBuffer,
+            value.livePositions.buffer as ArrayBuffer,
+            value.priorLow.buffer as ArrayBuffer,
+            value.priorHigh.buffer as ArrayBuffer,
           ]);
         } finally {
           output.free();

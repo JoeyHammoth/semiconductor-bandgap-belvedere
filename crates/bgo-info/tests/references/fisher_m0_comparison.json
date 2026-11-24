@@ -1,0 +1,25 @@
+{
+  "case_id": "m0-report-si",
+  "condition_number": 190326.11184412823,
+  "fisher_correlation": 0.9969151711216181,
+  "fisher_sd": [
+    0.0002493396621928443,
+    0.008530358667654054
+  ],
+  "parameters": [
+    "eg_ev",
+    "ln_b"
+  ],
+  "posterior_correlation": 0.996918915,
+  "posterior_sd": [
+    0.0002549599,
+    0.0087145868
+  ],
+  "relative_sd_error": [
+    0.022043614729828933,
+    0.021140202808691576
+  ],
+  "schema_version": 1,
+  "source_reference": "train/references/m0-report-si.json",
+  "synthetic": true
+}

@@ -88,6 +88,44 @@ export interface DiagnosticsResult {
   passes: boolean;
 }
 
+export interface FisherResult {
+  parameterNames: string[];
+  parameterCount: number;
+  /** Row-major covariance in reported-parameter coordinates. */
+  covariance: Float64Array;
+  /** Descending: stiffest first, sloppiest last. */
+  eigenvalues: Float64Array;
+  /** Eigenvectors in eigenvalue order, flattened vector-major. */
+  eigenvectors: Float64Array;
+  conditionNumber: number;
+  stiffestIndex: number;
+  sloppiestIndex: number;
+  /** `[semi-major, semi-minor, angle]` for the 1-sigma ellipse. */
+  ellipse1: Float64Array;
+  /** `[semi-major, semi-minor, angle]` for the 2-sigma ellipse. */
+  ellipse2: Float64Array;
+}
+
+export interface NestedTraceResult {
+  logEvidence: number;
+  logEvidenceError: number;
+  expectedLogEvidence: number;
+  information: number;
+  iterations: number;
+  converged: boolean;
+  livePoints: number;
+  frameCount: number;
+  parameterNames: string[];
+  eventIterations: Uint32Array;
+  eventLogEvidence: Float64Array;
+  eventThresholds: Float64Array;
+  eventLogPriorVolume: Float64Array;
+  /** Frame-major, point-major, parameter-major physical positions. */
+  livePositions: Float64Array;
+  priorLow: Float64Array;
+  priorHigh: Float64Array;
+}
+
 export type Request =
   | { id: number; kind: 'init'; base: string; module?: WebAssembly.Module }
   | { id: number; kind: 'version' }
@@ -101,7 +139,17 @@ export type Request =
     }
   | ({ id: number; kind: 'sampler' } & SamplerRequest)
   | ({ id: number; kind: 'predictive' } & PredictiveRequest)
-  | ({ id: number; kind: 'diagnostics' } & DiagnosticsRequest);
+  | ({ id: number; kind: 'diagnostics' } & DiagnosticsRequest)
+  | {
+      id: number;
+      kind: 'fisher';
+      model: string;
+      temperatureK: Float64Array;
+      currentA: number;
+      sigmaV: number;
+      reported: Float64Array;
+    }
+  | { id: number; kind: 'nested'; livePoints: number; seed: number };
 
 export type Response =
   | { id: number; ok: true; kind: 'ready' }
@@ -110,6 +158,8 @@ export type Response =
   | { id: number; ok: true; kind: 'sampler'; value: SamplerResult }
   | { id: number; ok: true; kind: 'predictive'; value: PredictiveResult }
   | { id: number; ok: true; kind: 'diagnostics'; value: DiagnosticsResult }
+  | { id: number; ok: true; kind: 'fisher'; value: FisherResult }
+  | { id: number; ok: true; kind: 'nested'; value: NestedTraceResult }
   | { id: number; ok: false; error: string };
 
 /** The wasm-bindgen class shape, including its snake_case getters. */
@@ -152,6 +202,40 @@ export interface WasmDiagnosticsOutput {
   readonly energy_error_mean: number;
   readonly divergences: number;
   readonly passes: boolean;
+  free: () => void;
+}
+
+export interface WasmFisherOutput {
+  readonly parameter_names: string;
+  readonly parameter_count: number;
+  readonly covariance: Float64Array;
+  readonly eigenvalues: Float64Array;
+  readonly eigenvectors: Float64Array;
+  readonly condition_number: number;
+  readonly stiffest_index: number;
+  readonly sloppiest_index: number;
+  readonly ellipse_1: Float64Array;
+  readonly ellipse_2: Float64Array;
+  free: () => void;
+}
+
+export interface WasmNestedTraceOutput {
+  readonly log_evidence: number;
+  readonly log_evidence_error: number;
+  readonly expected_log_evidence: number;
+  readonly information: number;
+  readonly iterations: number;
+  readonly converged: boolean;
+  readonly live_points: number;
+  readonly frame_count: number;
+  readonly parameter_names: string;
+  readonly event_iterations: Uint32Array;
+  readonly event_log_evidence: Float64Array;
+  readonly event_thresholds: Float64Array;
+  readonly event_log_prior_volume: Float64Array;
+  readonly live_positions: Float64Array;
+  readonly prior_low: Float64Array;
+  readonly prior_high: Float64Array;
   free: () => void;
 }
 
@@ -202,4 +286,12 @@ export interface CoreModule {
     meanTrajectorySteps: number,
     energyErrorLimit: number,
   ) => WasmSamplerOutput;
+  fisher_report: (
+    model: string,
+    temperatureK: Float64Array,
+    currentA: number,
+    sigmaV: number,
+    reported: Float64Array,
+  ) => WasmFisherOutput;
+  run_nested_gaussian: (livePoints: number, seed: number) => WasmNestedTraceOutput;
 }

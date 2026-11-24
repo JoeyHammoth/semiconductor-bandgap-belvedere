@@ -27,6 +27,9 @@ pub struct NestedConfig {
     pub slice_width: f64,
     pub max_step_out: usize,
     pub max_shrink: usize,
+    /// Record live-point snapshots every this many replacements. Zero keeps
+    /// the event stream metadata-only; the S2 scene sets it to one.
+    pub trace_stride: usize,
 }
 
 impl Default for NestedConfig {
@@ -40,6 +43,7 @@ impl Default for NestedConfig {
             slice_width: 0.05,
             max_step_out: 50,
             max_shrink: 1_000,
+            trace_stride: 0,
         }
     }
 }
@@ -51,6 +55,9 @@ pub struct NestedEvent {
     pub log_likelihood_threshold: f64,
     pub log_evidence: f64,
     pub log_prior_volume: f64,
+    /// Flattened live-point positions for this frame, or empty when tracing
+    /// is disabled. The dimension is the target's dimension.
+    pub live_positions: Vec<f64>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -140,12 +147,20 @@ where
 
         let replacement = replace_live_point(target, &live, removed.1, config, &mut rng)?;
         live.push(replacement.clone());
+        let live_positions = if config.trace_stride > 0 && iterations % config.trace_stride == 0 {
+            live.iter()
+                .flat_map(|(position, _)| position.iter().copied())
+                .collect()
+        } else {
+            Vec::new()
+        };
         on_event(NestedEvent {
             iteration: iterations,
             live_points: live.len(),
             log_likelihood_threshold: removed.1,
             log_evidence,
             log_prior_volume,
+            live_positions,
         });
     }
 
@@ -575,11 +590,18 @@ mod tests {
             ..NestedConfig::default()
         };
         let mut events = 0usize;
-        let output = run_nested(&target, &config, |event| {
+        let mut traced_frames = 0usize;
+        let traced_config = NestedConfig {
+            trace_stride: 1,
+            ..config.clone()
+        };
+        let output = run_nested(&target, &traced_config, |event| {
             assert_eq!(event.iteration, events + 1);
             assert_eq!(event.live_points, config.live_points);
             assert!(event.log_evidence.is_finite());
             assert!(event.log_likelihood_threshold.is_finite());
+            assert_eq!(event.live_positions.len(), config.live_points * 2);
+            traced_frames += 1;
             events += 1;
         })
         .expect("nested sampling should run");
@@ -588,6 +610,7 @@ mod tests {
         assert!(output.log_evidence.is_finite());
         assert!(output.iterations > 0);
         assert_eq!(events, output.iterations);
+        assert_eq!(traced_frames, output.iterations);
         assert!(output.log_evidence_error.is_finite());
         assert_eq!(output.live_points.len(), config.live_points);
     }

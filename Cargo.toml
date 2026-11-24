@@ -22,6 +22,7 @@ repository = "https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere"
 [workspace.dependencies]
 bgo-ad = { path = "crates/bgo-ad" }
 bgo-infer = { path = "crates/bgo-infer" }
+bgo-info = { path = "crates/bgo-info" }
 bgo-physics = { path = "crates/bgo-physics" }
 libm = "0.2"
 

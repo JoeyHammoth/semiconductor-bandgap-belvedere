@@ -51,7 +51,7 @@ web/                         SvelteKit app, adapter-static
   src/lib/scenes/            S0..S10, one module per scene
   src/lib/ui/                tokens, components, status bar, command palette
   src/lib/state/             runes stores, URL-hash permalinks, IndexedDB
-  src/routes/                /, /infer, /twin, /explore, /design, /ledger, /about
+  src/routes/                /, /infer, /evidence, /ledger, /twin, /explore, /design, /about
   src/service-worker.ts
   static/{wasm,weights,data}/
 train/                       Python: simulator, NPE training, references, export

@@ -24,6 +24,10 @@ dependencies = [
 [[package]]
 name = "bgo-info"
 version = "0.0.0"
+dependencies = [
+ "bgo-infer",
+ "serde_json",
+]
 
 [[package]]
 name = "bgo-nn"
@@ -46,6 +50,7 @@ name = "bgo-wasm"
 version = "0.0.0"
 dependencies = [
  "bgo-infer",
+ "bgo-info",
  "bgo-physics",
  "wasm-bindgen",
 ]

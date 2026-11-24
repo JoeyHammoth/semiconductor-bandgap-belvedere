@@ -84,11 +84,7 @@
       if (token !== runToken) return;
       if (!sampled.ok) throw new Error(sampled.error);
       const sampledValue = sampled.value;
-      if (
-        typeof sampledValue !== 'object' ||
-        sampledValue === null ||
-        !('draws' in sampledValue)
-      ) {
+      if (typeof sampledValue !== 'object' || sampledValue === null || !('draws' in sampledValue)) {
         throw new Error('sampler returned no draws');
       }
       result = sampledValue as SamplerResult;
@@ -184,6 +180,8 @@
     </a>
     <nav aria-label="Sections">
       <a href="../">Observatory</a>
+      <a href="../evidence/">Evidence</a>
+      <a href="../ledger/">Ledger</a>
       {#if caseData}<a href="#run">Run</a>{/if}
       {#if result}<a href="#diagnostics">Diagnostics</a>{/if}
       {#if predictive}<a href="#s1">S1</a>{/if}
@@ -199,8 +197,8 @@
       <h1 id="infer-title">The posterior,<br />not the point estimate.</h1>
       <p class="lede">
         Four MCLMC chains sample a synthetic diode-thermometry posterior in this tab. The
-        diagnostics are computed in Rust, and the interface will not show a converged state when
-        any gate fails.
+        diagnostics are computed in Rust, and the interface will not show a converged state when any
+        gate fails.
       </p>
       <div class="chips" aria-label="Case labels">
         <span class="chip">Synthetic observations</span>
@@ -221,20 +219,22 @@
           <div>
             <span class="label">Case</span>
             <strong>{caseData.case_id}</strong>
-            <p>{caseData.observations.temperature_k.length} points · {fixed(
+            <p>
+              {caseData.observations.temperature_k.length} points · {fixed(
                 caseData.observations.temperature_k[0],
                 2,
               )}–{fixed(
-                caseData.observations.temperature_k[
-                  caseData.observations.temperature_k.length - 1
-                ],
+                caseData.observations.temperature_k[caseData.observations.temperature_k.length - 1],
                 2,
-              )} K</p>
+              )} K
+            </p>
           </div>
           <div>
             <span class="label">Current</span>
             <strong class="tabular">{fixed(caseData.observations.current_a * 1_000, 3)} mA</strong>
-            <p>Likelihood σV {fixed(caseData.observations.noise.likelihood_sigma_v * 1_000, 3)} mV</p>
+            <p>
+              Likelihood σV {fixed(caseData.observations.noise.likelihood_sigma_v * 1_000, 3)} mV
+            </p>
           </div>
           <div>
             <span class="label">Anchor</span>
@@ -243,14 +243,16 @@
           </div>
           <div>
             <span class="label">Reference hash</span>
-            <strong class="hash" title={caseData.reference_sha256}>{caseData.reference_sha256.slice(0, 12)}…</strong>
+            <strong class="hash" title={caseData.reference_sha256}>
+              {caseData.reference_sha256.slice(0, 12)}…
+            </strong>
             <p>Config {caseData.config_sha256.slice(0, 12)}… · seed {caseData.seed}</p>
           </div>
         </div>
         <p class="note">
-          {caseData.anchor.note} The observations are generated, not the lost lab recordings.
-          The posterior is compared with the committed NumPyro summary offline; this view does
-          not claim a recovered measurement or a Table 1 reproduction.
+          {caseData.anchor.note} The observations are generated, not the lost lab recordings. The posterior
+          is compared with the committed NumPyro summary offline; this view does not claim a recovered
+          measurement or a Table 1 reproduction.
         </p>
       </section>
 
@@ -324,8 +326,8 @@
               <h2 id="s1-title">The Noisy Line</h2>
             </div>
             <p class="section-lede">
-              Every thin curve is a posterior draw; the band is the posterior predictive. The
-              points are synthetic observations, not the lost lab runs.
+              Every thin curve is a posterior draw; the band is the posterior predictive. The points
+              are synthetic observations, not the lost lab runs.
             </p>
             <PredictivePlot
               temperatures={caseData.observations.temperature_k}
@@ -376,7 +378,7 @@
     </section>
   </main>
 
-  <StatusBar {backend} {core} phase="Phase 1" {commit} />
+  <StatusBar {backend} {core} phase="Phase 2" {commit} />
 </div>
 
 <style>
