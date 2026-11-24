@@ -58,7 +58,7 @@ uv run python -m bgo_train.reference --compare /tmp/references
 
 ```bash
 cd train
-uv run --with dynesty python -m bgo_train.evidence
+uv run --with dynesty==3.2.0 python -m bgo_train.evidence
 ```
 
 This writes `web/static/data/evidence-ledger.json`. Dynesty supplies `ln Z`
@@ -66,6 +66,19 @@ and `H`; NumPyro NUTS supplies the posterior draws for PSIS-LOO. The M0 model
 is deliberately misspecified, and its Pareto-k above 0.7 is kept in the
 artifact as an explicit reliability failure rather than smoothed away. The
 output is synthetic data only.
+
+Verify the committed ledger against a fresh regeneration:
+
+```bash
+uv run --with dynesty==3.2.0 python -m bgo_train.evidence --check
+```
+
+The check uses a temporary cache, so it cannot pass on a stale cached run. It
+requires the dynesty, ArviZ and sampler settings to match exactly, while
+allowing 0.5 nat for `ln Z`, 5 for ELPD and 0.1 for Pareto-k to absorb
+cross-platform draw noise. The path-filtered `evidence ledger` CI workflow
+runs the same check when the generator, reference, artifact or Python lock
+changes.
 
 Run the Python tests and lint:
 

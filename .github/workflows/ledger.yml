@@ -1,0 +1,48 @@
+name: evidence ledger
+
+on:
+  pull_request:
+    paths:
+      - "train/src/bgo_train/evidence.py"
+      - "train/references/m1.json"
+      - "web/static/data/evidence-ledger.json"
+      - "train/pyproject.toml"
+      - "train/uv.lock"
+      - ".github/workflows/ledger.yml"
+  push:
+    branches: [main]
+    paths:
+      - "train/src/bgo_train/evidence.py"
+      - "train/references/m1.json"
+      - "web/static/data/evidence-ledger.json"
+      - "train/pyproject.toml"
+      - "train/uv.lock"
+      - ".github/workflows/ledger.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evidence-ledger-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ledger:
+    name: fresh regeneration
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: train
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.11.18"
+      - run: uv sync --locked --extra dev
+      - name: Regenerate and compare
+        run: uv run --with dynesty==3.2.0 python -m bgo_train.evidence --check
