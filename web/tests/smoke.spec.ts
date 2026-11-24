@@ -30,6 +30,13 @@ test('the hero renders a scene or its static fallback', async ({ page }) => {
   await expect(page.locator('.scene')).toHaveAttribute('data-backend', /webgpu|webgl2|static/);
 });
 
+test('reduced motion renders the static hero', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('./');
+  await expect(page.locator('.scene')).toHaveAttribute('data-backend', 'static');
+  await expect(page.locator('.scene svg')).toBeVisible();
+});
+
 test('landing page has no serious accessibility violations', async ({ page }) => {
   await page.goto('./');
   const results = await new AxeBuilder({ page }).analyze();

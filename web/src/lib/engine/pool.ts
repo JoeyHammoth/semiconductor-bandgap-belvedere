@@ -1,6 +1,8 @@
 import { compileCore } from './core';
 import type {
   DiagnosticsResult,
+  PredictiveRequest,
+  PredictiveResult,
   Request,
   Response,
   SamplerRequest,
@@ -9,7 +11,7 @@ import type {
 
 export interface EngineSuccess {
   ok: true;
-  value?: number | string | SamplerResult | DiagnosticsResult;
+  value?: number | string | SamplerResult | DiagnosticsResult | PredictiveResult;
 }
 
 export interface EngineFailure {
@@ -164,6 +166,10 @@ export class EnginePool {
     return this.#send({ kind: 'sampler', ...request }, timeoutMs);
   }
 
+  posteriorPredictive(request: PredictiveRequest) {
+    return this.#send({ kind: 'predictive', ...request }, 120_000);
+  }
+
   /**
    * Run one chain per available worker, then combine the draws and compute
    * diagnostics in Rust. A pool of one remains correct, just sequential.
@@ -210,7 +216,9 @@ export class EnginePool {
       if (
         value.parameterCount !== parameterCount ||
         value.drawsPerParameter !== drawsPerChain ||
-        value.draws.length !== chainDrawsLength
+        value.chainCount !== 1 ||
+        value.draws.length !== chainDrawsLength ||
+        value.energyErrorTrace.length !== drawsPerChain
       ) {
         return { ok: false, error: 'sampler workers returned inconsistent shapes' };
       }
@@ -218,8 +226,10 @@ export class EnginePool {
 
     const chainDraws = new Float64Array(chainDrawsLength * chains);
     const combinedDraws = new Float64Array(chainDrawsLength * chains);
+    const energyErrorTrace = new Float64Array(drawsPerChain * chains);
     for (let chain = 0; chain < chains; chain += 1) {
       chainDraws.set(values[chain].draws, chain * chainDrawsLength);
+      energyErrorTrace.set(values[chain].energyErrorTrace, chain * drawsPerChain);
       for (let parameter = 0; parameter < parameterCount; parameter += 1) {
         const source = chain * chainDrawsLength + parameter * drawsPerChain;
         const target = parameter * chains * drawsPerChain + chain * drawsPerChain;
@@ -254,6 +264,9 @@ export class EnginePool {
         ...first,
         draws: combinedDraws,
         drawsPerParameter: drawsPerChain * chains,
+        chainCount: chains,
+        drawsPerChain,
+        energyErrorTrace,
         rhat: diagnostics.rhat,
         essBulk: diagnostics.essBulk,
         rhatMax: diagnostics.rhatMax,

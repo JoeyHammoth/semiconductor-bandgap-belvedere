@@ -1,6 +1,13 @@
 /// <reference lib="webworker" />
 import { loadCore } from './core';
-import type { CoreModule, DiagnosticsResult, Request, Response, SamplerResult } from './protocol';
+import type {
+  CoreModule,
+  DiagnosticsResult,
+  PredictiveResult,
+  Request,
+  Response,
+  SamplerResult,
+} from './protocol';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -77,6 +84,40 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
         }
         break;
       }
+      case 'predictive': {
+        const output = module.posterior_predictive(
+          request.model,
+          request.temperatureK,
+          request.currentA,
+          request.sigmaV,
+          request.draws,
+          request.parameterCount,
+          request.drawsPerParameter,
+          request.seed,
+          request.lineCount,
+        );
+        try {
+          const value: PredictiveResult = {
+            mean: output.mean,
+            q05: output.q05,
+            q50: output.q50,
+            q95: output.q95,
+            lines: output.lines,
+            lineCount: output.line_count,
+            pointCount: output.point_count,
+          };
+          reply({ id: request.id, ok: true, kind: 'predictive', value }, [
+            value.mean.buffer as ArrayBuffer,
+            value.q05.buffer as ArrayBuffer,
+            value.q50.buffer as ArrayBuffer,
+            value.q95.buffer as ArrayBuffer,
+            value.lines.buffer as ArrayBuffer,
+          ]);
+        } finally {
+          output.free();
+        }
+        break;
+      }
       case 'sampler': {
         const output = module.run_sampler(
           request.model,
@@ -99,6 +140,9 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             draws: output.draws,
             parameterCount: output.parameter_count,
             drawsPerParameter: output.draws_per_parameter,
+            chainCount: output.chain_count,
+            drawsPerChain: output.draws_per_chain,
+            energyErrorTrace: output.energy_error_trace,
             rhat: output.rhat,
             essBulk: output.ess_bulk,
             rhatMax: output.rhat_max,
@@ -111,6 +155,7 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
           };
           reply({ id: request.id, ok: true, kind: 'sampler', value }, [
             value.draws.buffer as ArrayBuffer,
+            value.energyErrorTrace.buffer as ArrayBuffer,
             value.rhat.buffer as ArrayBuffer,
             value.essBulk.buffer as ArrayBuffer,
           ]);

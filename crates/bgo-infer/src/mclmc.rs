@@ -48,6 +48,8 @@ pub struct MclmcOutput {
     pub diagnostics: Diagnostics,
     pub acceptance_rate: f64,
     pub energy_error_mean: f64,
+    /// Absolute Metropolis energy error at each post-warmup draw, per chain.
+    pub energy_error_trace: Vec<Vec<f64>>,
     pub step_size: f64,
 }
 
@@ -122,12 +124,13 @@ pub fn run_mclmc(case: &Case, config: &MclmcConfig) -> Result<MclmcOutput, Mclmc
         };
         let mut pilot_rng = SplitMix64::new(config.seed ^ 0x9e37_79b9_7f4a_7c15);
         let mut pilot = ChainSampler::new(case, &preconditioner, &pilot_config, &mut pilot_rng);
-        let (_, latent, _, _, _, _) = pilot.run();
+        let (_, latent, _, _, _, _, _) = pilot.run();
         if latent.len() >= 10 {
             preconditioner = Preconditioner::from_samples(&latent);
         }
     }
     let mut chains = Vec::with_capacity(config.chains);
+    let mut energy_traces = Vec::with_capacity(config.chains);
     let mut all_acceptance = Vec::new();
     let mut all_energy = Vec::new();
     let mut divergences = 0usize;
@@ -136,8 +139,9 @@ pub fn run_mclmc(case: &Case, config: &MclmcConfig) -> Result<MclmcOutput, Mclmc
     for chain in 0..config.chains {
         let mut rng = SplitMix64::new(config.seed.wrapping_add(chain as u64 * 0x9e37_79b9));
         let mut sampler = ChainSampler::new(case, &preconditioner, config, &mut rng);
-        let (draws, _, acceptance, energy, chain_divergences, step_size) = sampler.run();
+        let (draws, _, acceptance, energy, trace, chain_divergences, step_size) = sampler.run();
         chains.push(draws);
+        energy_traces.push(trace);
         all_acceptance.push(acceptance);
         all_energy.push(energy);
         divergences += chain_divergences;
@@ -169,11 +173,12 @@ pub fn run_mclmc(case: &Case, config: &MclmcConfig) -> Result<MclmcOutput, Mclmc
         diagnostics,
         acceptance_rate,
         energy_error_mean,
+        energy_error_trace: energy_traces,
         step_size: final_step,
     })
 }
 
-type ChainRun = (Vec<Vec<f64>>, Vec<Vec<f64>>, f64, f64, usize, f64);
+type ChainRun = (Vec<Vec<f64>>, Vec<Vec<f64>>, f64, f64, Vec<f64>, usize, f64);
 
 struct ChainSampler<'a> {
     case: &'a Case,
@@ -236,8 +241,9 @@ impl<'a> ChainSampler<'a> {
         self.divergences = 0;
         let mut draws = Vec::with_capacity(self.config.draws);
         let mut latent_draws = Vec::with_capacity(self.config.draws);
+        let mut energy_trace = Vec::with_capacity(self.config.draws);
         for _ in 0..self.config.draws {
-            self.proposal(false);
+            energy_trace.push(self.proposal(false));
             let theta = self.theta();
             latent_draws.push(theta.clone());
             draws.push(self.case.reported(&theta));
@@ -249,12 +255,13 @@ impl<'a> ChainSampler<'a> {
             latent_draws,
             acceptance,
             energy,
+            energy_trace,
             self.divergences,
             self.step_size,
         )
     }
 
-    fn proposal(&mut self, warmup: bool) {
+    fn proposal(&mut self, warmup: bool) -> f64 {
         let steps =
             1 + (2.0 * self.rng.uniform() * self.config.mean_trajectory_steps).floor() as usize;
         let mut z = self.z.clone();
@@ -311,6 +318,7 @@ impl<'a> ChainSampler<'a> {
         if warmup {
             self.step_size = self.dual_averaging.update(acceptance).clamp(1e-10, 10.0);
         }
+        delta.abs()
     }
 
     fn theta(&self) -> Vec<f64> {

@@ -84,6 +84,9 @@ describe('EnginePool', () => {
       draws: new Float64Array([1, 2]),
       parameterCount: 2,
       drawsPerParameter: 1,
+      chainCount: 1,
+      drawsPerChain: 1,
+      energyErrorTrace: new Float64Array([0.01]),
       rhat: new Float64Array([1.01, 1.02]),
       essBulk: new Float64Array([399, 400]),
       rhatMax: 1.02,
@@ -137,6 +140,9 @@ describe('EnginePool', () => {
           draws: new Float64Array(index === 0 ? [1, 2] : [3, 4]),
           parameterCount: 1,
           drawsPerParameter: 2,
+          chainCount: 1,
+          drawsPerChain: 2,
+          energyErrorTrace: new Float64Array([0.01, 0.02]),
           rhat: new Float64Array([Number.NaN]),
           essBulk: new Float64Array([0]),
           rhatMax: Number.NaN,
@@ -182,10 +188,12 @@ describe('EnginePool', () => {
     const value = result.value as {
       draws: Float64Array;
       drawsPerParameter: number;
+      energyErrorTrace: Float64Array;
       passes: boolean;
     };
     expect(Array.from(value.draws)).toEqual([1, 2, 3, 4]);
     expect(value.drawsPerParameter).toBe(4);
+    expect(value.energyErrorTrace).toEqual(new Float64Array([0.01, 0.02, 0.01, 0.02]));
     expect(value.passes).toBe(true);
   });
 

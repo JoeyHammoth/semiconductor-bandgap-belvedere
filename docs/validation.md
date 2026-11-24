@@ -41,6 +41,8 @@ Table 1 intercept reproduction is not pending: it is **unavailable**. No authent
 | Diagnostics are honest | `cargo test -p bgo-infer --test diagnostics_contract`; deliberately broken chains | R-hat/ESS/energy/divergence gates fail the converged badge | verified (unit) |
 | M2 fixed-point target matches NumPyro | `cargo test -p bgo-infer --test target_parity`; latent transform, AD gradient and one log-density difference | gradient rel. error ≤ 1e-5; log-density difference ≤ 1e-5 | verified (unit) |
 | M0–M4 reproduce from config + seed | `uv run pytest`; regenerate with `--all`; `uv run python -m bgo_train.reference --check` | config/seed hashes match and every committed summary passes zero divergences, R-hat < 1.01, ESS > 400 | verified (committed references) |
+| Energy-error trace is the recorded gate input | `cargo test -p bgo-wasm`; sampler trace is finite and has one value per post-warmup draw | trace length matches draws; no fabricated samples | verified (unit) |
+| Posterior predictive is generated from posterior draws | `cargo test -p bgo-wasm`; M0 predictive intervals and S1 lines | finite values; q05 ≤ median ≤ q95; line count matches request | verified (unit) |
 | Report-anchored cases are visibly synthetic | manifest and per-case `synthetic`, `anchor.label`, and notes | no measured-data or Table 1 reproduction claim | verified (committed references) |
 | No reconstructed or hash-pinned raw run | manifest records config/seed hashes only; `data/manifest.json` remains empty | no data hash, no `data/raw` output | verified (audit + references) |
 
@@ -86,6 +88,11 @@ Phase 1 validation is simulation-only. The original recordings were lost (ADR 00
 | Accent contrast holds | `scripts/contrast.mjs` in both themes | ≥ 4.5:1 for body text and links | verified (CI) |
 | Permalinks round-trip | unit test | byte-identical state | verified (unit) |
 | Base-path routing works | Playwright against `vite preview` | all routes reachable | verified (CI) |
+| `/infer` serves the pinned synthetic M0 case | `web/src/lib/infer/case.test.ts`; SHA-256 and observation equality against `train/references/m0-report-si.json` | byte-pinned reference; no drift | verified (unit) |
+| `/infer` labels the case synthetic | Playwright `/infer/`; visible synthetic chip and provenance note | no measured-data or Table 1 reproduction claim | wired (local Playwright) |
+| `/infer` renders only the Rust diagnostics verdict | Playwright Chromium production M0 run; badge `data-pass` from `SamplerResult` | pass badge only when Rust gates pass | wired (local Playwright) |
+| S1 renders posterior draws and predictive band | Playwright Chromium production M0 run; canvas labels and table | synthetic observations; 500 posterior curves | wired (local Playwright) |
+| `/infer` has no serious axe violations | Playwright + axe-core on `/infer/` | zero serious/critical | verified (CI; e2e + a11y) |
 
 ## 8. How to run
 

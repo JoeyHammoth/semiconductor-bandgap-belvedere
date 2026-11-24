@@ -26,6 +26,10 @@ export interface SamplerResult {
   draws: Float64Array;
   parameterCount: number;
   drawsPerParameter: number;
+  chainCount: number;
+  drawsPerChain: number;
+  /** Chain-major absolute energy error, one value per post-warmup draw. */
+  energyErrorTrace: Float64Array;
   rhat: Float64Array;
   essBulk: Float64Array;
   rhatMax: number;
@@ -46,6 +50,30 @@ export interface DiagnosticsRequest {
   draws: Float64Array;
   energyErrorMean: number;
   divergences: number;
+}
+
+export interface PredictiveRequest {
+  model: string;
+  temperatureK: Float64Array;
+  currentA: number;
+  sigmaV: number;
+  /** Parameter-major draws, matching `SamplerResult.draws`. */
+  draws: Float64Array;
+  parameterCount: number;
+  drawsPerParameter: number;
+  seed: number;
+  lineCount: number;
+}
+
+export interface PredictiveResult {
+  mean: Float64Array;
+  q05: Float64Array;
+  q50: Float64Array;
+  q95: Float64Array;
+  /** Line-major noiseless posterior curves: `lineCount * pointCount`. */
+  lines: Float64Array;
+  lineCount: number;
+  pointCount: number;
 }
 
 export interface DiagnosticsResult {
@@ -70,6 +98,7 @@ export type Request =
       temperature: number;
     }
   | ({ id: number; kind: 'sampler' } & SamplerRequest)
+  | ({ id: number; kind: 'predictive' } & PredictiveRequest)
   | ({ id: number; kind: 'diagnostics' } & DiagnosticsRequest);
 
 export type Response =
@@ -77,6 +106,7 @@ export type Response =
   | { id: number; ok: true; kind: 'version'; value: string }
   | { id: number; ok: true; kind: 'varshni'; value: number }
   | { id: number; ok: true; kind: 'sampler'; value: SamplerResult }
+  | { id: number; ok: true; kind: 'predictive'; value: PredictiveResult }
   | { id: number; ok: true; kind: 'diagnostics'; value: DiagnosticsResult }
   | { id: number; ok: false; error: string };
 
@@ -86,6 +116,9 @@ export interface WasmSamplerOutput {
   readonly draws: Float64Array;
   readonly parameter_count: number;
   readonly draws_per_parameter: number;
+  readonly chain_count: number;
+  readonly draws_per_chain: number;
+  readonly energy_error_trace: Float64Array;
   readonly rhat: Float64Array;
   readonly ess_bulk: Float64Array;
   readonly rhat_max: number;
@@ -95,6 +128,17 @@ export interface WasmSamplerOutput {
   readonly passes: boolean;
   readonly acceptance_rate: number;
   readonly step_size: number;
+  free: () => void;
+}
+
+export interface WasmPredictiveOutput {
+  readonly mean: Float64Array;
+  readonly q05: Float64Array;
+  readonly q50: Float64Array;
+  readonly q95: Float64Array;
+  readonly lines: Float64Array;
+  readonly line_count: number;
+  readonly point_count: number;
   free: () => void;
 }
 
@@ -129,6 +173,17 @@ export interface CoreModule {
     energyErrorMean: number,
     divergences: number,
   ) => WasmDiagnosticsOutput;
+  posterior_predictive: (
+    model: string,
+    temperatureK: Float64Array,
+    currentA: number,
+    sigmaV: number,
+    draws: Float64Array,
+    parameterCount: number,
+    drawsPerParameter: number,
+    seed: number,
+    lineCount: number,
+  ) => WasmPredictiveOutput;
   run_sampler: (
     model: string,
     temperatureK: Float64Array,
