@@ -34,6 +34,26 @@ test('S2 runs the Rust nested sampler and exposes a scrubbable trace', async ({
   await expect(page.getByText(/closed-form/i).first()).toBeVisible();
 });
 
+test('S2 scrubber responds to keyboard navigation', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one nested-sampling browser run is enough for CI time');
+  test.setTimeout(120_000);
+  await page.goto('evidence/');
+  const run = page.getByRole('button', { name: /run nested sampling/i });
+  await expect(run).toBeEnabled({ timeout: 30_000 });
+  await run.click();
+  await expect(page.getByText(/Final ln Z/i)).toBeVisible({ timeout: 90_000 });
+
+  const trace = page.getByTestId('nested-trace');
+  const scrub = page.getByTestId('nested-scrub');
+  await expect(scrub).toBeEnabled();
+  await scrub.focus();
+  await page.keyboard.press('Home');
+  await expect.poll(async () => Number(await scrub.inputValue())).toBe(0);
+  await expect(trace.getByRole('status')).toContainText('Frame 1');
+  await page.keyboard.press('End');
+  await expect.poll(async () => Number(await scrub.inputValue())).toBeGreaterThan(0);
+});
+
 test('S4 recomputes Fisher information when the temperature range changes', async ({ page }) => {
   await page.goto('evidence/');
   const summary = page.getByText(/the stiffest combination/i);
@@ -42,6 +62,27 @@ test('S4 recomputes Fisher information when the temperature range changes', asyn
   await page.locator('#sloppiness-low').fill('260');
   await expect(summary).not.toHaveText(initial ?? '', { timeout: 30_000 });
   await expect(page.getByText(/The Fisher condition number/i)).toBeVisible();
+});
+
+test('S4 temperature sliders respond to keyboard navigation', async ({ page }) => {
+  await page.goto('evidence/');
+  const summary = page.getByText(/the stiffest combination/i);
+  await expect(summary).toBeVisible({ timeout: 30_000 });
+  const initial = await summary.textContent();
+
+  const low = page.locator('#sloppiness-low');
+  await low.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(low).toHaveValue('225');
+  await expect(summary).not.toHaveText(initial ?? '', { timeout: 30_000 });
+
+  const afterLow = await summary.textContent();
+  const high = page.locator('#sloppiness-high');
+  const highBefore = Number(await high.inputValue());
+  await high.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect.poll(async () => Number(await high.inputValue())).toBeLessThan(highBefore);
+  await expect(summary).not.toHaveText(afterLow ?? '', { timeout: 30_000 });
 });
 
 test('evidence route has no serious accessibility violations', async ({ page }) => {
