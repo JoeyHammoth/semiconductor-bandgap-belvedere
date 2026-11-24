@@ -129,6 +129,7 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
           request.config.warmup,
           request.config.draws,
           request.config.seed,
+          request.config.pilotSeed,
           request.config.targetAccept,
           request.config.initialStep,
           request.config.meanTrajectorySteps,

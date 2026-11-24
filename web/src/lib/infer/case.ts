@@ -40,6 +40,8 @@ export interface ProductionSampler {
   warmup: number;
   draws: number;
   seed: number;
+  /** Shared base seed for the covariance pilot. */
+  pilotSeed: number;
   targetAccept: number;
   initialStep: number;
   meanTrajectorySteps: number;
@@ -52,6 +54,7 @@ export const PRODUCTION_SAMPLER: ProductionSampler = {
   warmup: 5_000,
   draws: 4_000,
   seed: 0x6d63_6c6d,
+  pilotSeed: 0x6d63_6c6d,
   targetAccept: 0.995,
   initialStep: 0.4,
   meanTrajectorySteps: 16,

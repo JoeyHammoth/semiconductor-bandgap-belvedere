@@ -5,6 +5,8 @@ export interface SamplerConfig {
   warmup: number;
   draws: number;
   seed: number;
+  /** Shared base seed for the covariance pilot; workers keep their own `seed`. */
+  pilotSeed: number;
   targetAccept: number;
   initialStep: number;
   meanTrajectorySteps: number;
@@ -194,6 +196,7 @@ export interface CoreModule {
     warmup: number,
     draws: number,
     seed: number,
+    pilotSeed: number,
     targetAccept: number,
     initialStep: number,
     meanTrajectorySteps: number,

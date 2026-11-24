@@ -5,8 +5,6 @@
 //! Metropolis-Hastings statistic from the MAMS construction, so the chain is
 //! asymptotically unbiased rather than merely low-bias.
 
-use bgo_ad::{Dual, Scalar};
-
 use crate::diagnostics::Diagnostics;
 use crate::model::{Case, Model, ModelError};
 
@@ -19,6 +17,9 @@ pub struct MclmcConfig {
     pub warmup: usize,
     pub draws: usize,
     pub seed: u64,
+    /// Seed for the shared covariance pilot. Parallel workers must pass the
+    /// same base seed here so their chain runs share one preconditioner.
+    pub pilot_seed: u64,
     pub target_accept: f64,
     pub initial_step: f64,
     pub mean_trajectory_steps: f64,
@@ -32,6 +33,7 @@ impl Default for MclmcConfig {
             warmup: 5_000,
             draws: 4_000,
             seed: 0x6d63_6c6d,
+            pilot_seed: 0x6d63_6c6d,
             target_accept: 0.995,
             initial_step: 0.4,
             mean_trajectory_steps: 16.0,
@@ -122,7 +124,7 @@ pub fn run_mclmc(case: &Case, config: &MclmcConfig) -> Result<MclmcOutput, Mclmc
             draws: (config.draws / 2).max(2),
             ..config.clone()
         };
-        let mut pilot_rng = SplitMix64::new(config.seed ^ 0x9e37_79b9_7f4a_7c15);
+        let mut pilot_rng = SplitMix64::new(config.pilot_seed ^ 0x9e37_79b9_7f4a_7c15);
         let mut pilot = ChainSampler::new(case, &preconditioner, &pilot_config, &mut pilot_rng);
         let (_, latent, _, _, _, _, _) = pilot.run();
         if latent.len() >= 10 {
@@ -660,31 +662,15 @@ impl Preconditioner {
     }
 
     fn logp_and_grad(&self, case: &Case, z: &[f64]) -> (f64, Vec<f64>) {
-        let mut value = f64::NAN;
+        let theta = self.theta(z);
+        let (value, gradient_theta) = case.logp_and_grad(&theta);
         let mut gradient = vec![0.0; z.len()];
-        for index in 0..z.len() {
-            let mut dual = z.iter().copied().map(Dual::constant).collect::<Vec<_>>();
-            dual[index] = Dual::variable(z[index]);
-            let evaluation = self.logp(case, &dual);
-            if index == 0 {
-                value = evaluation.value();
+        for (row, coefficient) in self.transform.iter().enumerate() {
+            for (column, value) in coefficient.iter().enumerate() {
+                gradient[column] += *value * gradient_theta[row];
             }
-            gradient[index] = evaluation.du;
         }
         (value, gradient)
-    }
-
-    fn logp<T: Scalar>(&self, case: &Case, z: &[T]) -> T {
-        let theta = (0..self.center.len())
-            .map(|row| {
-                let mut value = T::from_f64(self.center[row]);
-                for (coefficient, coordinate) in self.transform[row].iter().zip(z) {
-                    value = value + T::from_f64(*coefficient) * *coordinate;
-                }
-                value
-            })
-            .collect::<Vec<_>>();
-        case.logp(&theta)
     }
 }
 

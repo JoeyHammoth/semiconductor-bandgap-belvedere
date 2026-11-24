@@ -71,6 +71,7 @@ describe('EnginePool', () => {
         warmup: 5000,
         draws: 4000,
         seed: 7,
+        pilotSeed: 7,
         targetAccept: 0.995,
         initialStep: 0.4,
         meanTrajectorySteps: 16,
@@ -115,6 +116,7 @@ describe('EnginePool', () => {
         warmup: 20,
         draws: 2,
         seed: 7,
+        pilotSeed: 7,
         targetAccept: 0.995,
         initialStep: 0.4,
         meanTrajectorySteps: 16,
@@ -128,6 +130,7 @@ describe('EnginePool', () => {
     expect(requests).toHaveLength(2);
     expect(requests.every((request) => request.config.chains === 1)).toBe(true);
     expect(new Set(requests.map((request) => request.config.seed)).size).toBe(2);
+    expect(new Set(requests.map((request) => request.config.pilotSeed)).size).toBe(1);
 
     for (const [index, request] of requests.entries()) {
       const worker = workers.find((candidate) => candidate.posted.includes(request))!;

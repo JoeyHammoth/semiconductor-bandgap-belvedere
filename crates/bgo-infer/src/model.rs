@@ -358,6 +358,14 @@ impl Case {
     }
 
     pub fn logp_and_grad(&self, theta: &[f64]) -> (f64, Vec<f64>) {
+        match self.model {
+            Model::M0 => self.logp_and_grad_m0(theta),
+            Model::M2 => self.logp_and_grad_m2(theta),
+            _ => self.logp_and_grad_ad(theta),
+        }
+    }
+
+    fn logp_and_grad_ad(&self, theta: &[f64]) -> (f64, Vec<f64>) {
         let mut value = f64::NAN;
         let mut gradient = vec![0.0; theta.len()];
         for index in 0..theta.len() {
@@ -373,6 +381,127 @@ impl Case {
             }
             gradient[index] = evaluation.du;
         }
+        (value, gradient)
+    }
+
+    /// Exact value and gradient for the two-parameter lab model. This is the
+    /// hot path in every MCLMC proposal, so it avoids the per-coordinate dual
+    /// sweep used by the generic fallback.
+    fn logp_and_grad_m0(&self, theta: &[f64]) -> (f64, Vec<f64>) {
+        let mut gradient = vec![0.0; 2];
+        if theta.len() != 2 {
+            return (f64::NEG_INFINITY, gradient);
+        }
+        let eg = theta[0];
+        let ln_b = theta[1];
+        if !(0.05..=3.5).contains(&eg) {
+            return (f64::NEG_INFINITY, gradient);
+        }
+
+        let mut value = normal_prior_f64(eg, 0.9, 0.35) + normal_prior_f64(ln_b, 8.0, 8.0);
+        gradient[0] = -(eg - 0.9) / (0.35 * 0.35);
+        gradient[1] = -(ln_b - 8.0) / (8.0 * 8.0);
+
+        let ln_current = self.current_a.ln();
+        for (temperature, voltage) in self.temperature_k.iter().zip(&self.voltage_v) {
+            let vt = (BOLTZMANN / ELEMENTARY_CHARGE) * temperature;
+            let log_argument = ln_current - (ln_b - eg / vt);
+            let (log_term, slope) = log_term_and_slope(log_argument);
+            let predicted = vt * log_term;
+            let residual = (predicted - voltage) / self.sigma_v;
+            value += -0.5 * residual * residual;
+
+            let common = -residual / self.sigma_v;
+            gradient[0] += common * slope;
+            gradient[1] += common * (-vt * slope);
+        }
+        (value, gradient)
+    }
+
+    /// Exact value and gradient for M2's endpoint-gap parameterisation. The
+    /// gradient is propagated through the endpoint-gap transform, the probit
+    /// eta transform and its Jacobian.
+    fn logp_and_grad_m2(&self, theta: &[f64]) -> (f64, Vec<f64>) {
+        let mut gradient = vec![0.0; 5];
+        if theta.len() != 5 {
+            return (f64::NEG_INFINITY, gradient);
+        }
+
+        let (low, high) = self.gap_anchors();
+        let beta = theta[3];
+        let low_gap = low * low / (low + beta);
+        let high_gap = high * high / (high + beta);
+        let denominator = high_gap - low_gap;
+        if !denominator.is_finite() || denominator <= 0.0 {
+            return (f64::NEG_INFINITY, gradient);
+        }
+        let alpha = (theta[0] - theta[1]) / denominator;
+        let eg0 = theta[0] + alpha * low_gap;
+        let ln_b = theta[2];
+        let eta = eta_from_latent(theta[4]);
+        if !(0.05..=3.5).contains(&eg0)
+            || !(0.0..=2.0e-3).contains(&alpha)
+            || !(100.0..=3000.0).contains(&beta)
+            || !(1.5..=5.0).contains(&eta)
+        {
+            return (f64::NEG_INFINITY, gradient);
+        }
+
+        let mut value = normal_prior_f64(eg0, 0.9, 0.35)
+            + normal_prior_f64(ln_b, 8.0, 8.0)
+            + normal_prior_f64(alpha, 7.021e-4, 1.0e-4)
+            + normal_prior_f64(beta, 1108.0, 150.0)
+            + normal_prior_f64(eta, 3.0, 1.0)
+            + eta_log_jacobian(theta[4])
+            - denominator.ln();
+
+        let low_gap_derivative = -low * low / ((low + beta) * (low + beta));
+        let high_gap_derivative = -high * high / ((high + beta) * (high + beta));
+        let denominator_derivative = high_gap_derivative - low_gap_derivative;
+        let alpha_beta_derivative =
+            -(theta[0] - theta[1]) * denominator_derivative / (denominator * denominator);
+        let eg0_beta_derivative = alpha * low_gap_derivative + low_gap * alpha_beta_derivative;
+
+        let mut gradient_eg0 = -(eg0 - 0.9) / (0.35 * 0.35);
+        let mut gradient_ln_b = -(ln_b - 8.0) / (8.0 * 8.0);
+        let mut gradient_alpha = -(alpha - 7.021e-4) / (1.0e-4 * 1.0e-4);
+        let mut gradient_beta =
+            -(beta - 1108.0) / (150.0 * 150.0) - denominator_derivative / denominator;
+        let mut gradient_eta = -(eta - 3.0);
+
+        let ln_current = self.current_a.ln();
+        let ln_reference_temperature = REFERENCE_TEMPERATURE_K.ln();
+        for (temperature, voltage) in self.temperature_k.iter().zip(&self.voltage_v) {
+            let temperature_squared = temperature * temperature;
+            let temperature_plus_beta = temperature + beta;
+            let vt = (BOLTZMANN / ELEMENTARY_CHARGE) * temperature;
+            let gap = eg0 - alpha * temperature_squared / temperature_plus_beta;
+            let log_argument = ln_current
+                - (ln_b - eta * ln_reference_temperature + eta * temperature.ln() - gap / vt);
+            let (log_term, slope) = log_term_and_slope(log_argument);
+            let predicted = vt * log_term;
+            let residual = (predicted - voltage) / self.sigma_v;
+            value += -0.5 * residual * residual;
+
+            let common = -residual / self.sigma_v;
+            let gap_slope = temperature_squared / temperature_plus_beta;
+            let gap_beta_slope =
+                alpha * temperature_squared / (temperature_plus_beta * temperature_plus_beta);
+            gradient_eg0 += common * slope;
+            gradient_ln_b += common * (-vt * slope);
+            gradient_alpha += common * (-slope * gap_slope);
+            gradient_beta += common * (slope * gap_beta_slope);
+            gradient_eta += common * (vt * slope * (ln_reference_temperature - temperature.ln()));
+        }
+
+        let eta_derivative = 3.5 * normal_density(theta[4]);
+        gradient[0] = gradient_eg0 * (1.0 + low_gap / denominator) + gradient_alpha / denominator;
+        gradient[1] = -gradient_eg0 * low_gap / denominator - gradient_alpha / denominator;
+        gradient[2] = gradient_ln_b;
+        gradient[3] = gradient_eg0 * eg0_beta_derivative
+            + gradient_alpha * alpha_beta_derivative
+            + gradient_beta;
+        gradient[4] = gradient_eta * eta_derivative - theta[4];
         (value, gradient)
     }
 
@@ -666,6 +795,25 @@ fn in_bounds<T: Scalar>(value: T, low: f64, high: f64) -> bool {
 fn normal_prior<T: Scalar>(value: T, location: f64, scale: f64) -> T {
     let standardized = (value - T::from_f64(location)) / T::from_f64(scale);
     T::from_f64(-0.5) * standardized * standardized - T::from_f64(scale.ln())
+}
+
+fn normal_prior_f64(value: f64, location: f64, scale: f64) -> f64 {
+    let standardized = (value - location) / scale;
+    -0.5 * standardized * standardized - scale.ln()
+}
+
+fn normal_density(value: f64) -> f64 {
+    (-0.5 * value * value).exp() / (2.0 * std::f64::consts::PI).sqrt()
+}
+
+/// `ln(1 + exp(a))` and its derivative, with the same large-argument branch as
+/// the generic log density.
+fn log_term_and_slope(argument: f64) -> (f64, f64) {
+    if argument > 50.0 {
+        (argument, 1.0)
+    } else {
+        (argument.exp().ln_1p(), 1.0 / (1.0 + (-argument).exp()))
+    }
 }
 
 fn normal_cdf<T: Scalar>(value: T) -> T {
