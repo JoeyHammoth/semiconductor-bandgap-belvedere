@@ -45,6 +45,10 @@ MAX_TREE_DEPTH = 12
 QUANTILES = (0.05, 0.25, 0.5, 0.75, 0.95)
 RHAT_LIMIT = 1.01
 ESS_LIMIT = 400.0
+REFRESH_MEAN_SD_LIMIT = 0.05
+REFRESH_QUANTILE_SD_LIMIT = 0.05
+REFRESH_SD_RELATIVE_LIMIT = 0.10
+REFRESH_CORRELATION_LIMIT = 0.02
 REFERENCE_TEMPERATURE_K = 300.0
 
 TRAIN_ROOT = Path(__file__).resolve().parents[2]
@@ -443,6 +447,235 @@ def check_references(config_dir: Path, output_dir: Path) -> None:
         raise ValueError(f"manifest is missing cases: {missing}")
 
 
+def _read_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _compare_numeric_tree(
+    expected: Any,
+    actual: Any,
+    *,
+    path: str,
+    errors: list[str],
+) -> None:
+    """Compare JSON-shaped data, allowing tiny representation differences."""
+
+    if isinstance(expected, dict):
+        if not isinstance(actual, dict):
+            errors.append(f"{path}: expected an object, got {type(actual).__name__}")
+            return
+        missing = sorted(set(expected) - set(actual))
+        extra = sorted(set(actual) - set(expected))
+        if missing:
+            errors.append(f"{path}: missing keys {missing}")
+        if extra:
+            errors.append(f"{path}: unexpected keys {extra}")
+        for key in expected:
+            if key in actual:
+                _compare_numeric_tree(
+                    expected[key],
+                    actual[key],
+                    path=f"{path}.{key}",
+                    errors=errors,
+                )
+        return
+
+    if isinstance(expected, list):
+        if not isinstance(actual, list):
+            errors.append(f"{path}: expected a list, got {type(actual).__name__}")
+            return
+        if len(expected) != len(actual):
+            errors.append(f"{path}: expected {len(expected)} entries, got {len(actual)}")
+            return
+        for index, (expected_value, actual_value) in enumerate(zip(expected, actual, strict=True)):
+            _compare_numeric_tree(
+                expected_value,
+                actual_value,
+                path=f"{path}[{index}]",
+                errors=errors,
+            )
+        return
+
+    if isinstance(expected, bool) or expected is None or isinstance(expected, str):
+        if expected != actual:
+            errors.append(f"{path}: expected {expected!r}, got {actual!r}")
+        return
+
+    if isinstance(expected, (int, float)):
+        if isinstance(actual, bool) or not isinstance(actual, (int, float)):
+            errors.append(f"{path}: expected a number, got {actual!r}")
+        elif not math.isclose(
+            float(expected),
+            float(actual),
+            rel_tol=1.0e-12,
+            abs_tol=1.0e-15,
+        ):
+            errors.append(f"{path}: expected {expected!r}, got {actual!r}")
+        return
+
+    if expected != actual:
+        errors.append(f"{path}: expected {expected!r}, got {actual!r}")
+
+
+def _compare_reference_document(
+    case_id: str,
+    expected: dict[str, Any],
+    actual: dict[str, Any],
+    errors: list[str],
+    stats: dict[str, float],
+) -> None:
+    for key in ("case", "observations"):
+        if key not in expected or key not in actual:
+            errors.append(f"{case_id}: missing {key} document section")
+            continue
+        _compare_numeric_tree(
+            expected[key],
+            actual[key],
+            path=f"{case_id}.{key}",
+            errors=errors,
+        )
+
+    expected_reference = expected.get("reference", {})
+    actual_reference = actual.get("reference", {})
+    for key in ("engine", "settings", "parameters"):
+        if expected_reference.get(key) != actual_reference.get(key):
+            errors.append(f"{case_id}: reference {key} changed")
+
+    diagnostics = actual_reference.get("diagnostics", {})
+    if diagnostics.get("passes") is not True:
+        errors.append(f"{case_id}: regenerated diagnostics do not pass")
+    if diagnostics.get("divergences") != 0:
+        errors.append(f"{case_id}: regenerated diagnostics contain divergences")
+    if float(diagnostics.get("rhat_max", math.inf)) >= RHAT_LIMIT:
+        errors.append(f"{case_id}: regenerated R-hat is not below {RHAT_LIMIT}")
+    if float(diagnostics.get("ess_bulk_min", -math.inf)) <= ESS_LIMIT:
+        errors.append(f"{case_id}: regenerated ESS is not above {ESS_LIMIT}")
+
+    expected_sd = expected_reference.get("sd", {})
+    actual_sd = actual_reference.get("sd", {})
+    expected_mean = expected_reference.get("mean", {})
+    actual_mean = actual_reference.get("mean", {})
+    for name, expected_value in expected_mean.items():
+        scale = float(expected_sd.get(name, 0.0))
+        if scale <= 0.0 or not math.isfinite(scale):
+            errors.append(f"{case_id}: expected sd for {name} is not positive and finite")
+            continue
+        actual_value = float(actual_mean.get(name, math.nan))
+        deviation = abs(actual_value - float(expected_value)) / scale
+        stats["mean"] = max(stats["mean"], deviation)
+        if not math.isfinite(deviation) or deviation > REFRESH_MEAN_SD_LIMIT:
+            errors.append(
+                f"{case_id}: mean {name} moved {deviation:.4f} sd "
+                f"(limit {REFRESH_MEAN_SD_LIMIT})"
+            )
+
+    for quantile, expected_values in expected_reference.get("quantiles", {}).items():
+        actual_values = actual_reference.get("quantiles", {}).get(quantile, {})
+        for name, expected_value in expected_values.items():
+            scale = float(expected_sd.get(name, 0.0))
+            if scale <= 0.0 or not math.isfinite(scale):
+                continue
+            actual_value = float(actual_values.get(name, math.nan))
+            deviation = abs(actual_value - float(expected_value)) / scale
+            stats["quantile"] = max(stats["quantile"], deviation)
+            if not math.isfinite(deviation) or deviation > REFRESH_QUANTILE_SD_LIMIT:
+                errors.append(
+                    f"{case_id}: quantile {quantile} {name} moved {deviation:.4f} sd "
+                    f"(limit {REFRESH_QUANTILE_SD_LIMIT})"
+                )
+
+    for name, expected_value in expected_sd.items():
+        expected_value = float(expected_value)
+        actual_value = float(actual_sd.get(name, math.nan))
+        if expected_value <= 0.0 or not math.isfinite(expected_value):
+            errors.append(f"{case_id}: expected sd for {name} is not positive and finite")
+            continue
+        deviation = abs(actual_value / expected_value - 1.0)
+        stats["sd"] = max(stats["sd"], deviation)
+        if not math.isfinite(deviation) or deviation > REFRESH_SD_RELATIVE_LIMIT:
+            errors.append(
+                f"{case_id}: sd {name} changed {deviation:.2%} "
+                f"(limit {REFRESH_SD_RELATIVE_LIMIT:.0%})"
+            )
+
+    expected_matrix = expected_reference.get("correlation", {}).get("matrix", [])
+    actual_matrix = actual_reference.get("correlation", {}).get("matrix", [])
+    if len(expected_matrix) != len(actual_matrix):
+        errors.append(f"{case_id}: correlation matrix dimensions changed")
+    else:
+        for row, (expected_row, actual_row) in enumerate(
+            zip(expected_matrix, actual_matrix, strict=True)
+        ):
+            if len(expected_row) != len(actual_row):
+                errors.append(f"{case_id}: correlation row {row} dimensions changed")
+                continue
+            for column, (expected_value, actual_value) in enumerate(
+                zip(expected_row, actual_row, strict=True)
+            ):
+                deviation = abs(float(actual_value) - float(expected_value))
+                stats["correlation"] = max(stats["correlation"], deviation)
+                if not math.isfinite(deviation) or deviation > REFRESH_CORRELATION_LIMIT:
+                    errors.append(
+                        f"{case_id}: correlation [{row}][{column}] changed {deviation:.4f} "
+                        f"(limit {REFRESH_CORRELATION_LIMIT})"
+                    )
+
+
+def compare_references(expected_dir: Path, candidate_dir: Path) -> tuple[list[str], dict[str, float]]:
+    """Compare committed references with a regenerated run within MC tolerances."""
+
+    errors: list[str] = []
+    stats = {"mean": 0.0, "quantile": 0.0, "sd": 0.0, "correlation": 0.0}
+    expected_manifest_path = expected_dir / "manifest.json"
+    candidate_manifest_path = candidate_dir / "manifest.json"
+    if not expected_manifest_path.is_file():
+        return [f"missing expected manifest: {expected_manifest_path}"], stats
+    if not candidate_manifest_path.is_file():
+        return [f"missing candidate manifest: {candidate_manifest_path}"], stats
+
+    expected_manifest = _read_json(expected_manifest_path)
+    candidate_manifest = _read_json(candidate_manifest_path)
+    for key in ("schema_version", "synthetic", "engine", "settings"):
+        if expected_manifest.get(key) != candidate_manifest.get(key):
+            errors.append(f"manifest {key} changed")
+
+    expected_entries = {
+        entry.get("case_id"): entry for entry in expected_manifest.get("cases", [])
+    }
+    candidate_entries = {
+        entry.get("case_id"): entry for entry in candidate_manifest.get("cases", [])
+    }
+    if set(expected_entries) != set(candidate_entries):
+        errors.append(
+            "manifest cases changed: "
+            f"expected {sorted(expected_entries)}, got {sorted(candidate_entries)}"
+        )
+
+    for case_id in sorted(set(expected_entries) & set(candidate_entries)):
+        expected_entry = expected_entries[case_id]
+        candidate_entry = candidate_entries[case_id]
+        for key in ("reference", "config_sha256", "seed", "seed_sha256", "synthetic"):
+            if expected_entry.get(key) != candidate_entry.get(key):
+                errors.append(f"{case_id}: manifest {key} changed")
+        expected_path = expected_dir / expected_entry["reference"]
+        candidate_path = candidate_dir / candidate_entry["reference"]
+        if not expected_path.is_file():
+            errors.append(f"{case_id}: missing expected reference {expected_path}")
+            continue
+        if not candidate_path.is_file():
+            errors.append(f"{case_id}: missing candidate reference {candidate_path}")
+            continue
+        _compare_reference_document(
+            case_id,
+            _read_json(expected_path),
+            _read_json(candidate_path),
+            errors,
+            stats,
+        )
+
+    return errors, stats
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--all", action="store_true", help="regenerate every committed case")
@@ -450,13 +683,37 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config-dir", type=Path, default=DEFAULT_CONFIG_DIR)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--check", action="store_true", help="validate committed references only")
+    parser.add_argument(
+        "--compare",
+        type=Path,
+        metavar="CANDIDATE_DIR",
+        help="compare a regenerated reference directory against the committed one",
+    )
     args = parser.parse_args(argv)
 
     if args.check:
-        if args.config or args.all:
-            parser.error("--check cannot be combined with --config or --all")
+        if args.config or args.all or args.compare:
+            parser.error("--check cannot be combined with --config, --all or --compare")
         check_references(args.config_dir, args.out)
         print("reference manifest and cases are consistent")
+        return 0
+
+    if args.compare:
+        if args.config or args.all:
+            parser.error("--compare cannot be combined with --config or --all")
+        errors, stats = compare_references(args.out, args.compare)
+        if errors:
+            print("reference refresh is outside the Monte Carlo tolerance:")
+            for error in errors:
+                print(f"- {error}")
+            return 1
+        print(
+            "reference refresh is within Monte Carlo tolerance: "
+            f"max mean shift {stats['mean']:.4f} sd, "
+            f"max quantile shift {stats['quantile']:.4f} sd, "
+            f"max sd change {stats['sd']:.2%}, "
+            f"max correlation change {stats['correlation']:.4f}"
+        )
         return 0
 
     if args.config:

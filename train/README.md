@@ -44,6 +44,15 @@ Validate the committed manifest without rerunning NUTS:
 uv run python -m bgo_train.reference --check
 ```
 
+Compare a regenerated directory with the committed references without
+rewriting them. Ordinary MCMC scatter is accepted within documented
+tolerances; meaningful shifts still fail:
+
+```bash
+uv run python -m bgo_train.reference --all --out /tmp/references
+uv run python -m bgo_train.reference --compare /tmp/references
+```
+
 Run the Python tests and lint:
 
 ```bash

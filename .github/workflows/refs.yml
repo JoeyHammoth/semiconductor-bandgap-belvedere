@@ -26,22 +26,27 @@ jobs:
           version: "0.11.18"
       - run: uv sync --locked --extra dev
       - name: Regenerate references
-        run: uv run python -m bgo_train.reference --all
-      - name: Detect drift
+        run: uv run python -m bgo_train.reference --all --out "$RUNNER_TEMP/references"
+      - name: Detect scientific drift
         id: drift
         run: |
-          if git diff --quiet -- references; then
+          set +e
+          uv run python -m bgo_train.reference --compare "$RUNNER_TEMP/references" \
+            > "$RUNNER_TEMP/references-report.txt" 2>&1
+          status=$?
+          cat "$RUNNER_TEMP/references-report.txt"
+          if [ "$status" -eq 0 ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            git diff -- references > "$RUNNER_TEMP/references.diff"
           fi
-      - name: Upload reference diff
+          exit 0
+      - name: Upload reference report
         if: steps.drift.outputs.changed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: reference-drift
-          path: ${{ runner.temp }}/references.diff
+          path: ${{ runner.temp }}/references-report.txt
           retention-days: 14
       - name: Open or update drift issue
         if: steps.drift.outputs.changed == 'true'
@@ -51,12 +56,12 @@ jobs:
           title="Reference refresh drift: synthetic M0-M4"
           body="$RUNNER_TEMP/reference-issue.md"
           {
-            echo "The scheduled NumPyro reference refresh produced a diff."
+            echo "The scheduled NumPyro reference refresh moved outside the documented Monte Carlo tolerance."
             echo
             echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             echo
-            echo '```diff'
-            head -200 "$RUNNER_TEMP/references.diff"
+            echo '```text'
+            head -200 "$RUNNER_TEMP/references-report.txt"
             echo '```'
           } > "$body"
           existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \

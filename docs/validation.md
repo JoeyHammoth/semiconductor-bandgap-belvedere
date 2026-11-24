@@ -40,13 +40,15 @@ Table 1 intercept reproduction is not pending: it is **unavailable**. No authent
 | Replicate scatter matches theory | several independent runs | observed sd within 2× of `sqrt(H/N)` | pending |
 | Diagnostics are honest | `cargo test -p bgo-infer --test diagnostics_contract`; deliberately broken chains | R-hat/ESS/energy/divergence gates fail the converged badge | verified (unit) |
 | M2 fixed-point target matches NumPyro | `cargo test -p bgo-infer --test target_parity`; latent transform, AD gradient and one log-density difference | gradient rel. error ≤ 1e-5; log-density difference ≤ 1e-5 | verified (unit) |
-| M0–M4 reproduce from config + seed | `uv run pytest`; regenerate with `--all`; `uv run python -m bgo_train.reference --check` | config/seed hashes match and every committed summary passes zero divergences, R-hat < 1.01, ESS > 400 | verified (committed references) |
+| M0–M4 reproduce from config + seed | `uv run pytest`; regenerate with `--all`; `uv run python -m bgo_train.reference --check`; `--compare` against the committed directory | config/seed hashes match; every summary has zero divergences, R-hat < 1.01, ESS > 400; refresh shifts stay within 0.05 sd (mean/quantiles), 10% (sd) and 0.02 (correlation) | verified (committed references + tolerance tests) |
 | Energy-error trace is the recorded gate input | `cargo test -p bgo-wasm`; sampler trace is finite and has one value per post-warmup draw | trace length matches draws; no fabricated samples | verified (unit) |
 | Posterior predictive is generated from posterior draws | `cargo test -p bgo-wasm`; M0 predictive intervals and S1 lines | finite values; q05 ≤ median ≤ q95; line count matches request | verified (unit) |
 | Report-anchored cases are visibly synthetic | manifest and per-case `synthetic`, `anchor.label`, and notes | no measured-data or Table 1 reproduction claim | verified (committed references) |
 | No reconstructed or hash-pinned raw run | manifest records config/seed hashes only; `data/manifest.json` remains empty | no data hash, no `data/raw` output | verified (audit + references) |
 
 Phase 1 validation is simulation-only. The original recordings were lost (ADR 0006), so report-anchored synthetic cases are labelled and are not a real-data comparison.
+
+Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff: `--compare` accepts ordinary MCMC scatter when means and quantiles shift by at most 0.05 sd, standard deviations by at most 10%, and correlations by at most 0.02. Engine or config changes, failed diagnostics or larger shifts still fail the scheduled workflow. This does not relax the sampler-parity acceptance criteria.
 
 ## 4. Sloppiness and information geometry
 
