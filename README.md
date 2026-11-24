@@ -105,7 +105,7 @@ Nothing ships on trust. Each claim has a test, a tolerance and a committed artif
 | M0 reproduces the report's Table 1 intercepts | unavailable — original recordings lost |
 | Report Table 1 arithmetic is internally consistent | verified (unit) |
 | MCLMC matches NumPyro NUTS on simulated M0–M4 | verified (CI; all six cases) |
-| Nested-sampling `ln Z` matches closed form and `dynesty` | pending |
+| Nested-sampling `ln Z` matches closed form and `dynesty` | verified (integration; included replicate scatter) |
 | Neural posterior passes SBC and TARP | pending |
 | Accessibility and size budgets enforced in CI | verified (CI) |
 
