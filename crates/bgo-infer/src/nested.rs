@@ -1,10 +1,11 @@
 //! Nested sampling on a unit-cube prior.
 //!
 //! The target owns the dimension and evaluates `ln L + ln pi` for a point in
-//! `[0, 1]^d`. The sampler replaces the lowest live point with a constrained
-//! slice sample, accumulates the one-dimensional evidence integral, and emits
-//! a typed event for each replacement so the S2 visualization can remain a
-//! projection of the actual computation.
+//! `[0, 1]^d`. The sampler replaces the lowest live point with a uniform draw
+//! from the prior restricted to the likelihood threshold, accumulates the
+//! one-dimensional evidence integral, and emits a typed event for each
+//! replacement so the S2 visualization can remain a projection of the actual
+//! computation.
 
 /// A target with a uniform prior on the unit cube.
 pub trait LogLikePrior {
@@ -21,7 +22,7 @@ pub struct NestedConfig {
     /// Stop when the remaining evidence bound is below this fraction of `Z`.
     pub remaining_evidence: f64,
     pub seed: u64,
-    /// Full coordinate sweeps per replacement.
+    /// Full coordinate sweeps per constrained-prior replacement.
     pub slice_steps: usize,
     pub slice_width: f64,
     pub max_step_out: usize,
@@ -239,14 +240,14 @@ where
 {
     for _ in 0..8 {
         let start = &live[rng.index(live.len())];
-        if let Some(point) = slice_sample(target, start, threshold, config, rng) {
+        if let Some(point) = constrained_uniform_sample(target, start, threshold, config, rng) {
             return Ok(point);
         }
     }
     Err(NestedError::SamplingFailed)
 }
 
-fn slice_sample<T>(
+fn constrained_uniform_sample<T>(
     target: &T,
     start: &(Vec<f64>, f64),
     threshold: f64,
@@ -256,16 +257,24 @@ fn slice_sample<T>(
 where
     T: LogLikePrior + ?Sized,
 {
+    // Nested sampling replaces the lowest point with a draw from the *uniform*
+    // prior restricted to `L >= threshold`, not from the posterior `p ∝ L`.
+    // The conditional distribution of one coordinate is uniform over the
+    // connected component(s) of the constrained cross-section. For each
+    // coordinate we bracket the component containing the current point and use
+    // rejection from that bracket; no likelihood-height auxiliary is drawn.
     let mut position = start.0.clone();
     let mut log_likelihood = start.1;
     for _ in 0..config.slice_steps {
         for coordinate in 0..position.len() {
             let current = position[coordinate];
-            let log_slice = slice_height(log_likelihood, threshold, rng)?;
             let width = config.slice_width;
             let left_offset = rng.uniform() * width;
+            // Keep the initial interval centered on the current coordinate.
+            // Deriving the right edge from a clipped left edge can otherwise
+            // leave the current point outside the interval near a boundary.
             let mut left = (current - left_offset).max(0.0);
-            let mut right = (left + width).min(1.0);
+            let mut right = (current + (width - left_offset)).min(1.0);
 
             for _ in 0..config.max_step_out {
                 if left <= 0.0 {
@@ -273,7 +282,7 @@ where
                 }
                 let edge = (left - width).max(0.0);
                 left = edge;
-                if log_at(target, &position, coordinate, edge) < log_slice {
+                if log_at(target, &position, coordinate, edge) < threshold {
                     break;
                 }
             }
@@ -283,7 +292,7 @@ where
                 }
                 let edge = (right + width).min(1.0);
                 right = edge;
-                if log_at(target, &position, coordinate, edge) < log_slice {
+                if log_at(target, &position, coordinate, edge) < threshold {
                     break;
                 }
             }
@@ -292,7 +301,7 @@ where
             for _ in 0..config.max_shrink {
                 let candidate = left + rng.uniform() * (right - left);
                 let value = log_at(target, &position, coordinate, candidate);
-                if value >= log_slice {
+                if value >= threshold {
                     position[coordinate] = candidate;
                     log_likelihood = value;
                     accepted = true;
@@ -316,19 +325,6 @@ where
             .all(|value| value.is_finite() && (0.0..=1.0).contains(value))
     {
         Some((position, log_likelihood))
-    } else {
-        None
-    }
-}
-
-fn slice_height(current: f64, threshold: f64, rng: &mut SplitMix64) -> Option<f64> {
-    // The auxiliary is uniform on (0, L(current)]. Values below the
-    // truncation all induce the same (full constrained-support) slice, so
-    // clamping them to the threshold preserves the x transition while keeping
-    // the slice above the support boundary.
-    let candidate = (current + rng.uniform().ln()).max(threshold);
-    if candidate.is_finite() {
-        Some(candidate)
     } else {
         None
     }
@@ -460,7 +456,7 @@ mod tests {
     }
 
     #[test]
-    fn constrained_slice_preserves_a_truncated_linear_mean() {
+    fn constrained_uniform_preserves_a_truncated_linear_mean() {
         let target = Linear;
         let threshold = 0.5_f64.ln();
         let config = NestedConfig::default();
@@ -469,14 +465,78 @@ mod tests {
         let mut total = 0.0;
         let count = 10_000;
         for _ in 0..count {
-            point = slice_sample(&target, &point, threshold, &config, &mut rng)
-                .expect("slice sample should stay in the constrained support");
+            point = constrained_uniform_sample(&target, &point, threshold, &config, &mut rng)
+                .expect("the constrained draw should stay in the support");
             total += point.0[0];
         }
         let mean = total / count as f64;
         assert!(
-            (mean - 7.0 / 9.0).abs() <= 0.01,
-            "truncated mean {mean} should be 7/9"
+            (mean - 0.75).abs() <= 0.01,
+            "truncated uniform mean {mean} should be 3/4"
+        );
+    }
+
+    #[test]
+    fn constrained_uniform_preserves_a_truncated_disk_mean() {
+        let target = Gaussian {
+            center: [0.5, 0.5],
+            sigma: 0.1,
+        };
+        let radius = 0.4;
+        let threshold = target.log_like_prior(&[0.5 + radius, 0.5]);
+        let config = NestedConfig::default();
+        let mut rng = SplitMix64::new(0x2ad1);
+        let mut point = (vec![0.5 + radius, 0.5], threshold);
+        for _ in 0..200 {
+            point = constrained_uniform_sample(&target, &point, threshold, &config, &mut rng)
+                .expect("the constrained draw should stay in the support");
+        }
+        let mut total_radius_squared = 0.0;
+        let count = 10_000;
+        for _ in 0..count {
+            point = constrained_uniform_sample(&target, &point, threshold, &config, &mut rng)
+                .expect("the constrained draw should stay in the support");
+            total_radius_squared += (point.0[0] - 0.5).powi(2) + (point.0[1] - 0.5).powi(2);
+        }
+        let mean_radius_squared = total_radius_squared / count as f64;
+        let expected = radius * radius / 2.0;
+        assert!(
+            (mean_radius_squared - expected).abs() <= 1.0e-3,
+            "mean r^2 {mean_radius_squared} should be {expected} for a uniform disk"
+        );
+    }
+
+    #[test]
+    fn constrained_uniform_moves_from_the_mode() {
+        let target = Gaussian {
+            center: [0.5, 0.5],
+            sigma: 0.1,
+        };
+        let radius = 0.19;
+        let threshold = target.log_like_prior(&[0.5 + radius, 0.5]);
+        let config = NestedConfig {
+            slice_steps: 200,
+            ..NestedConfig::default()
+        };
+        let mut rng = SplitMix64::new(0x3ad1);
+        let mut total_radius_squared = 0.0;
+        let count = 1_000;
+        for _ in 0..count {
+            let point = constrained_uniform_sample(
+                &target,
+                &(vec![0.5, 0.5], target.log_like_prior(&[0.5, 0.5])),
+                threshold,
+                &config,
+                &mut rng,
+            )
+            .expect("the constrained draw should stay in the support");
+            total_radius_squared += (point.0[0] - 0.5).powi(2) + (point.0[1] - 0.5).powi(2);
+        }
+        let mean_radius_squared = total_radius_squared / count as f64;
+        let expected = radius * radius / 2.0;
+        assert!(
+            (mean_radius_squared - expected).abs() <= 1.0e-3,
+            "mean r^2 {mean_radius_squared} should be {expected}; the chain stayed near the mode"
         );
     }
 
@@ -493,8 +553,8 @@ mod tests {
         let mut total = 0.0;
         let count = 10_000;
         for _ in 0..count {
-            point = slice_sample(&target, &point, threshold, &config, &mut rng)
-                .expect("slice sample should stay in the constrained support");
+            point = constrained_uniform_sample(&target, &point, threshold, &config, &mut rng)
+                .expect("the constrained draw should stay in the support");
             total += point.0[0];
         }
         let mean = total / count as f64;

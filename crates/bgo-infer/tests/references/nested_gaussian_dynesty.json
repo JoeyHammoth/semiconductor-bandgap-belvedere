@@ -1,0 +1,18 @@
+{
+  "analytic_log_evidence": -2.767293119578746,
+  "case": "gaussian_2d_sigma_0.1",
+  "dynesty_version": "2.1.5",
+  "engine": "dynesty",
+  "iterations": 2303,
+  "log_evidence": -2.729033217178683,
+  "log_evidence_error": 0.07723068893966993,
+  "schema_version": 1,
+  "settings": {
+    "dlogz": 0.05,
+    "ndim": 2,
+    "nlive": 400,
+    "sample": "rwalk",
+    "seed": 20261124
+  },
+  "synthetic": true
+}

@@ -35,9 +35,9 @@ Table 1 intercept reproduction is not pending: it is **unavailable**. No authent
 |---|---|---|---|
 | MCLMC matches NUTS on simulated M0–M4 | `cargo test -p bgo-infer --test reference_posteriors`; production defaults (4 chains, 5000 warmup, 4000 draws, target 0.995, 16 mean trajectory steps) against the committed NumPyro summaries | mean ≤ 0.05 σ, sd ≤ 0.10 σ, max correlation difference ≤ 0.10 | verified (CI; all six cases) |
 | Coverage is nominal | 200+ simulated replications | 95% interval covers in 93–97% | pending |
-| Nested sampling `ln Z` is correct | closed-form Gaussian evidence | ≤ 0.2 nats | pending |
-| Nested sampling agrees with `dynesty` | simulated data, committed dynesty output | ≤ 0.3 nats | pending |
-| Replicate scatter matches theory | several independent runs | observed sd within 2× of `sqrt(H/N)` | pending |
+| Nested sampling `ln Z` is correct | `cargo test -p bgo-infer --test nested_evidence`; closed-form Gaussian evidence | ≤ 0.2 nats | verified (integration) |
+| Nested sampling agrees with `dynesty` | same test against committed [`tests/references/nested_gaussian_dynesty.json`](../crates/bgo-infer/tests/references/nested_gaussian_dynesty.json) | ≤ 0.3 nats | verified (integration; dynesty 2.1.5) |
+| Replicate scatter matches theory | same test; six fixed seeds | observed sd within 0.5–2× of `sqrt(H/N)` | verified (integration) |
 | Diagnostics are honest | `cargo test -p bgo-infer --test diagnostics_contract`; deliberately broken chains | R-hat/ESS/energy/divergence gates fail the converged badge | verified (unit) |
 | M2 fixed-point target matches NumPyro | `cargo test -p bgo-infer --test target_parity`; latent transform, AD gradient and one log-density difference | gradient rel. error ≤ 1e-5; log-density difference ≤ 1e-5 | verified (unit) |
 | M0–M4 reproduce from config + seed | `uv run pytest`; regenerate with `--all`; `uv run python -m bgo_train.reference --check`; `--compare` against the committed directory | config/seed hashes match; every summary has zero divergences, R-hat < 1.01, ESS > 400; refresh shifts stay within 0.05 sd (mean/quantiles), 10% (sd) and 0.02 (correlation) | verified (committed references + tolerance tests) |
@@ -47,6 +47,8 @@ Table 1 intercept reproduction is not pending: it is **unavailable**. No authent
 | No reconstructed or hash-pinned raw run | manifest records config/seed hashes only; `data/manifest.json` remains empty | no data hash, no `data/raw` output | verified (audit + references) |
 
 Phase 1 validation is simulation-only. The original recordings were lost (ADR 0006), so report-anchored synthetic cases are labelled and are not a real-data comparison.
+
+Nested sampling replaces a live point with a draw from the **uniform prior restricted to the likelihood threshold**, not from the likelihood-weighted posterior. The fixed-threshold tests check that this draw preserves uniform constrained means; the integration test checks the closed-form 2D Gaussian, the committed dynesty run and replicate scatter together.
 
 Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff: `--compare` accepts ordinary MCMC scatter when means and quantiles shift by at most 0.05 sd, standard deviations by at most 10%, and correlations by at most 0.02. Engine or config changes, failed diagnostics or larger shifts still fail the scheduled workflow. This does not relax the sampler-parity acceptance criteria.
 
