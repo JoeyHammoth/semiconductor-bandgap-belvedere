@@ -6,7 +6,7 @@
 [![deploy](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/actions/workflows/deploy.yml/badge.svg)](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/actions/workflows/deploy.yml)
 [![licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-**Live:** https://joeyhammoth.github.io/semiconductor-bandgap-belvedere/ — Phase 0 walking skeleton. The original recordings no longer exist; the site uses labelled literature parameters and the report's published summary. No measured dataset is published.
+**Live:** https://joeyhammoth.github.io/semiconductor-bandgap-belvedere/ — Phase 1: synthetic M0–M4 references, MCLMC and the infer view. The original recordings no longer exist; the site uses labelled literature parameters and the report's published summary. No measured dataset is published.
 
 ## The question
 
@@ -104,7 +104,7 @@ Nothing ships on trust. Each claim has a test, a tolerance and a committed artif
 |---|---|
 | M0 reproduces the report's Table 1 intercepts | unavailable — original recordings lost |
 | Report Table 1 arithmetic is internally consistent | verified (unit) |
-| MCLMC matches NumPyro NUTS on simulated M0–M4 | wired — NUTS goldens committed; comparison is #26 |
+| MCLMC matches NumPyro NUTS on simulated M0–M4 | verified (CI; all six cases) |
 | Nested-sampling `ln Z` matches closed form and `dynesty` | pending |
 | Neural posterior passes SBC and TARP | pending |
 | Accessibility and size budgets enforced in CI | verified (CI) |
