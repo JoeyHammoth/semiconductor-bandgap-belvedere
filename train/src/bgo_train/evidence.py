@@ -19,9 +19,7 @@ from pathlib import Path
 from typing import Any
 
 import arviz as az
-
-jax_config = __import__("jax")
-jax_config.config.update("jax_enable_x64", True)
+import dynesty
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -31,7 +29,7 @@ from numpyro.infer import MCMC, NUTS
 from numpyro.infer.initialization import init_to_value
 from scipy.stats import norm, truncnorm
 
-import dynesty
+jax.config.update("jax_enable_x64", True)
 
 K_BOLTZMANN = 1.380649e-23
 ELEMENTARY_CHARGE = 1.602176634e-19
