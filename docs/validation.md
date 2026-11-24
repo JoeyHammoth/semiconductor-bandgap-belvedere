@@ -33,7 +33,7 @@ Table 1 intercept reproduction is not pending: it is **unavailable**. No authent
 
 | Claim | Test | Tolerance | Status |
 |---|---|---|---|
-| MCLMC matches NUTS on simulated M0–M4 | `cargo test -p bgo-infer --test reference_posteriors`; production defaults (4 chains, 5000 warmup, 4000 draws, target 0.995, 16 mean trajectory steps) against the committed NumPyro summaries | mean ≤ 0.05 σ, sd ≤ 0.10 σ, max correlation difference ≤ 0.10 | verified (unit; all six cases pass locally) |
+| MCLMC matches NUTS on simulated M0–M4 | `cargo test -p bgo-infer --test reference_posteriors`; production defaults (4 chains, 5000 warmup, 4000 draws, target 0.995, 16 mean trajectory steps) against the committed NumPyro summaries | mean ≤ 0.05 σ, sd ≤ 0.10 σ, max correlation difference ≤ 0.10 | verified (CI; all six cases) |
 | Coverage is nominal | 200+ simulated replications | 95% interval covers in 93–97% | pending |
 | Nested sampling `ln Z` is correct | closed-form Gaussian evidence | ≤ 0.2 nats | pending |
 | Nested sampling agrees with `dynesty` | simulated data, committed dynesty output | ≤ 0.3 nats | pending |
@@ -89,9 +89,9 @@ Phase 1 validation is simulation-only. The original recordings were lost (ADR 00
 | Permalinks round-trip | unit test | byte-identical state | verified (unit) |
 | Base-path routing works | Playwright against `vite preview` | all routes reachable | verified (CI) |
 | `/infer` serves the pinned synthetic M0 case | `web/src/lib/infer/case.test.ts`; SHA-256 and observation equality against `train/references/m0-report-si.json` | byte-pinned reference; no drift | verified (unit) |
-| `/infer` labels the case synthetic | Playwright `/infer/`; visible synthetic chip and provenance note | no measured-data or Table 1 reproduction claim | wired (local Playwright) |
-| `/infer` renders only the Rust diagnostics verdict | Playwright Chromium production M0 run; badge `data-pass` from `SamplerResult` | pass badge only when Rust gates pass | wired (local Playwright) |
-| S1 renders posterior draws and predictive band | Playwright Chromium production M0 run; canvas labels and table | synthetic observations; 500 posterior curves | wired (local Playwright) |
+| `/infer` labels the case synthetic | Playwright `/infer/`; visible synthetic chip and provenance note | no measured-data or Table 1 reproduction claim | verified (CI; e2e + a11y) |
+| `/infer` renders only the Rust diagnostics verdict | Playwright Chromium production M0 run; badge `data-pass` from `SamplerResult` | pass badge only when Rust gates pass | verified (CI; e2e + a11y) |
+| S1 renders posterior draws and predictive band | Playwright Chromium production M0 run; canvas labels and table | synthetic observations; 500 posterior curves | verified (CI; e2e + a11y) |
 | `/infer` has no serious axe violations | Playwright + axe-core on `/infer/` | zero serious/critical | verified (CI; e2e + a11y) |
 
 ## 8. How to run
