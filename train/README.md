@@ -18,12 +18,13 @@ train/
 ├─ src/bgo_train/
 │  ├─ config.py              # validated TOML contract
 │  ├─ simulation.py          # M0-M4 forward models and seeded noise
-│  └─ reference.py           # NumPyro NUTS + CLI
+│  ├─ reference.py           # NumPyro NUTS + CLI
+│  └─ evidence.py            # dynesty evidence + NUTS/PSIS-LOO ledger
 └─ tests/
 ```
 
-The future NPE, dynesty, export and training modules remain planned; they are
-not part of the M0-M4 reference pipeline.
+The future NPE, export and training modules remain planned. `evidence.py` is
+the offline ledger generator and is not part of the M0-M4 reference pipeline.
 
 ## Reproduce everything
 
@@ -52,6 +53,19 @@ tolerances; meaningful shifts still fail:
 uv run python -m bgo_train.reference --all --out /tmp/references
 uv run python -m bgo_train.reference --compare /tmp/references
 ```
+
+## Evidence ledger
+
+```bash
+cd train
+uv run --with dynesty python -m bgo_train.evidence
+```
+
+This writes `web/static/data/evidence-ledger.json`. Dynesty supplies `ln Z`
+and `H`; NumPyro NUTS supplies the posterior draws for PSIS-LOO. The M0 model
+is deliberately misspecified, and its Pareto-k above 0.7 is kept in the
+artifact as an explicit reliability failure rather than smoothed away. The
+output is synthetic data only.
 
 Run the Python tests and lint:
 

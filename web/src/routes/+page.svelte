@@ -107,6 +107,8 @@
       <a href="#question">Question</a>
       <a href="#method">Method</a>
       <a href="infer/">Infer</a>
+      <a href="evidence/">Evidence</a>
+      <a href="ledger/">Ledger</a>
       <a href="#honesty">Honesty</a>
       <a href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere#readme">Docs</a>
       <button class="theme" type="button" onclick={toggleTheme} aria-pressed={daylight}>
@@ -128,14 +130,19 @@
 
       <div class="readout panel">
         <div class="readout-main">
-          <span class="eyebrow">Varshni gap at <span class="tabular">{temperature.toFixed(0)}</span> K</span>
+          <span class="eyebrow">
+            Varshni gap at <span class="tabular">{temperature.toFixed(0)}</span> K
+          </span>
           <p class="value tabular" aria-live="polite">
             {display}<span class="unit">eV</span>
           </p>
           <p class="caveat">
             Silicon Varshni (1967) parameters, verified in the
-            <a href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/docs/physics-audit.md">physics audit</a>.
-            Computed in Rust/WASM, not in this component.
+            <a
+              href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/docs/physics-audit.md"
+            >
+              physics audit
+            </a>. Computed in Rust/WASM, not in this component.
           </p>
         </div>
 
@@ -151,7 +158,9 @@
             oninput={onTemperature}
             disabled={!available}
           />
-          <div class="range-labels tabular" aria-hidden="true"><span>150 K</span><span>400 K</span></div>
+          <div class="range-labels tabular" aria-hidden="true">
+            <span>150 K</span><span>400 K</span>
+          </div>
           {#if error}
             <p class="error" role="status">{error}</p>
           {:else if !available}
@@ -184,8 +193,8 @@
         <p>
           Under the ideal assumptions — no series resistance, unit ideality, a prefactor with no
           temperature dependence — the forward voltage falls on a straight line whose intercept is
-          <code>E<sub>g</sub>/q</code>. Relax any one of those and the intercept becomes a mixture of
-          the gap, the prefactor and the ideality.
+          <code>E<sub>g</sub>/q</code>. Relax any one of those and the intercept becomes a mixture
+          of the gap, the prefactor and the ideality.
         </p>
         <p>
           Over a 60–100 K window around room temperature, those parameters are nearly collinear.
@@ -236,7 +245,11 @@
         and cannot be refitted here. Uncertainties are trend-line spreads, not total uncertainties.
         LEDs are compared with the same die's room-temperature emission instead, because an alloy
         LED has no well-defined 0 K gap. Sources and arithmetic:
-        <a href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/docs/physics-audit.md">physics audit</a>.
+        <a
+          href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/docs/physics-audit.md"
+        >
+          physics audit
+        </a>.
       </p>
     </section>
 
@@ -246,15 +259,24 @@
       <div class="cards">
         <article class="panel card">
           <h3>Inference</h3>
-          <p>Microcanonical HMC, nested-sampling evidence, Stein particles and amortised posteriors — validated against NumPyro offline.</p>
+          <p>
+            Microcanonical HMC, nested-sampling evidence, Stein particles and amortised posteriors —
+            validated against NumPyro offline.
+          </p>
         </article>
         <article class="panel card">
           <h3>Information</h3>
-          <p>Fisher spectra and Cramér–Rao ellipsoids show which parameter combinations the data pin down, and which they do not.</p>
+          <p>
+            Fisher spectra and Cramér–Rao ellipsoids show which parameter combinations the data pin
+            down, and which they do not.
+          </p>
         </article>
         <article class="panel card">
           <h3>Design</h3>
-          <p>Expected information gain ranks the next measurement, so the recommendation is a calculation rather than an opinion.</p>
+          <p>
+            Expected information gain ranks the next measurement, so the recommendation is a
+            calculation rather than an opinion.
+          </p>
         </article>
       </div>
     </section>
@@ -280,15 +302,20 @@
     <section class="next" aria-labelledby="n-title">
       <h2 id="n-title">Status</h2>
       <p>
-        Phase 1 — physics, AD and the simulation-first sampler. The synthetic M0–M4 references,
-        fail-closed diagnostics, MCLMC and the infer view are in place. The original recordings no
-        longer exist, so later scenes use labelled simulated and report-anchored data. Full plan in
-        <a href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/docs/roadmap.md">the roadmap</a>.
+        Phase 2 — nested-sampling evidence, Fisher sloppiness and the evidence ledger are in place.
+        The synthetic M0–M4 references, fail-closed diagnostics and MCLMC remain the foundation. The
+        SVGD swarm is the remaining Phase 2 scene. The original recordings no longer exist, so every
+        scene uses labelled simulated and report-anchored data. Full plan in
+        <a
+          href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/docs/roadmap.md"
+        >
+          the roadmap
+        </a>.
       </p>
     </section>
   </main>
 
-  <StatusBar {backend} {core} phase="Phase 1" {commit} />
+  <StatusBar {backend} {core} phase="Phase 2" {commit} />
 </div>
 
 <style>

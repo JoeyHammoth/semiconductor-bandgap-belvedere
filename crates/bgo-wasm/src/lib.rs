@@ -6,7 +6,11 @@
 
 #![forbid(unsafe_code)]
 
-use bgo_infer::{bulk_ess, split_rhat, Case, Diagnostics, MclmcConfig, MclmcOutput, Model};
+use bgo_infer::{
+    bulk_ess, run_nested, split_rhat, Case, Diagnostics, LogLikePrior, MclmcConfig, MclmcOutput,
+    Model, NestedConfig,
+};
+use bgo_info::{analyze_fisher, covariance_ellipse, fisher_from_jacobian};
 use wasm_bindgen::prelude::*;
 
 /// Core version, rendered in the status bar.
@@ -234,6 +238,331 @@ pub fn diagnose_chains(
             divergences as usize,
         ),
     })
+}
+
+/// Fisher information and its sloppy spectrum at one reported parameter point.
+///
+/// The model, observations and Jacobian stay in Rust; the browser receives the
+/// covariance, eigenvectors and two-dimensional covariance ellipses.
+#[wasm_bindgen]
+pub struct FisherOutput {
+    parameter_names: String,
+    parameter_count: u32,
+    covariance: Vec<f64>,
+    eigenvalues: Vec<f64>,
+    eigenvectors: Vec<f64>,
+    condition_number: f64,
+    stiffest_index: u32,
+    sloppiest_index: u32,
+    ellipse_1: Vec<f64>,
+    ellipse_2: Vec<f64>,
+}
+
+#[wasm_bindgen]
+impl FisherOutput {
+    #[wasm_bindgen(getter)]
+    pub fn parameter_names(&self) -> String {
+        self.parameter_names.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn parameter_count(&self) -> u32 {
+        self.parameter_count
+    }
+
+    /// Row-major covariance in reported-parameter coordinates.
+    #[wasm_bindgen(getter)]
+    pub fn covariance(&self) -> Vec<f64> {
+        self.covariance.clone()
+    }
+
+    /// Descending Fisher eigenvalues: stiffest first, sloppiest last.
+    #[wasm_bindgen(getter)]
+    pub fn eigenvalues(&self) -> Vec<f64> {
+        self.eigenvalues.clone()
+    }
+
+    /// Eigenvectors in the same order, flattened vector-major.
+    #[wasm_bindgen(getter)]
+    pub fn eigenvectors(&self) -> Vec<f64> {
+        self.eigenvectors.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn condition_number(&self) -> f64 {
+        self.condition_number
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn stiffest_index(&self) -> u32 {
+        self.stiffest_index
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn sloppiest_index(&self) -> u32 {
+        self.sloppiest_index
+    }
+
+    /// `[semi-major, semi-minor, angle]` for the 1-sigma ellipse in the first
+    /// two reported parameters.
+    #[wasm_bindgen(getter)]
+    pub fn ellipse_1(&self) -> Vec<f64> {
+        self.ellipse_1.clone()
+    }
+
+    /// `[semi-major, semi-minor, angle]` for the 2-sigma ellipse.
+    #[wasm_bindgen(getter)]
+    pub fn ellipse_2(&self) -> Vec<f64> {
+        self.ellipse_2.clone()
+    }
+}
+
+#[wasm_bindgen]
+pub fn fisher_report(
+    model: &str,
+    temperature_k: &[f64],
+    current_a: f64,
+    sigma_v: f64,
+    reported: &[f64],
+) -> Result<FisherOutput, JsValue> {
+    if temperature_k.len() < 2 {
+        return Err(JsValue::from_str("at least two temperatures are required"));
+    }
+    let case = Case::new(
+        model_from_name(model).map_err(|error| JsValue::from_str(&error))?,
+        temperature_k.to_vec(),
+        vec![0.0; temperature_k.len()],
+        current_a,
+        sigma_v,
+    )
+    .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let jacobian = case
+        .observation_jacobian_reported(reported)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let fisher = fisher_from_jacobian(&jacobian, sigma_v)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let report = analyze_fisher(&fisher).map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let ellipse_1 = covariance_ellipse(&report.covariance, 0, 1, 1.0)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let ellipse_2 = covariance_ellipse(&report.covariance, 0, 1, 2.0)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    Ok(FisherOutput {
+        parameter_names: case.parameter_names().join(","),
+        parameter_count: case.parameter_names().len() as u32,
+        covariance: report.covariance.data().to_vec(),
+        eigenvalues: report.spectrum.eigenvalues.clone(),
+        eigenvectors: report
+            .spectrum
+            .eigenvectors
+            .iter()
+            .flatten()
+            .copied()
+            .collect(),
+        condition_number: report.condition_number,
+        stiffest_index: report.stiffest_index as u32,
+        sloppiest_index: report.sloppiest_index as u32,
+        ellipse_1: vec![
+            ellipse_1.semi_major,
+            ellipse_1.semi_minor,
+            ellipse_1.angle_rad,
+        ],
+        ellipse_2: vec![
+            ellipse_2.semi_major,
+            ellipse_2.semi_minor,
+            ellipse_2.angle_rad,
+        ],
+    })
+}
+
+/// Synthetic 2D Gaussian calibration fixture for S2. The unit-cube prior is
+/// mapped to a labelled `(E_g, ln B)` window; the evidence is compared with
+/// the closed-form value from the same mapping.
+const EVIDENCE_LOW: [f64; 2] = [0.8, 5.0];
+const EVIDENCE_HIGH: [f64; 2] = [1.2, 6.0];
+const EVIDENCE_MEAN: [f64; 2] = [1.002, 5.504_239_846];
+const EVIDENCE_SIGMA: [f64; 2] = [0.003, 0.02];
+
+struct EvidenceGaussian;
+
+impl LogLikePrior for EvidenceGaussian {
+    fn dimension(&self) -> usize {
+        2
+    }
+
+    fn log_like_prior(&self, theta: &[f64]) -> f64 {
+        if theta.len() != 2 {
+            return f64::NEG_INFINITY;
+        }
+        let eg = EVIDENCE_LOW[0] + theta[0] * (EVIDENCE_HIGH[0] - EVIDENCE_LOW[0]);
+        let ln_b = EVIDENCE_LOW[1] + theta[1] * (EVIDENCE_HIGH[1] - EVIDENCE_LOW[1]);
+        let first = (eg - EVIDENCE_MEAN[0]) / EVIDENCE_SIGMA[0];
+        let second = (ln_b - EVIDENCE_MEAN[1]) / EVIDENCE_SIGMA[1];
+        -0.5 * (first * first + second * second)
+    }
+}
+
+/// Nested-sampling event trace for S2, including live-point snapshots.
+#[wasm_bindgen]
+pub struct NestedTraceOutput {
+    log_evidence: f64,
+    log_evidence_error: f64,
+    expected_log_evidence: f64,
+    information: f64,
+    iterations: u32,
+    converged: bool,
+    live_points: u32,
+    frame_count: u32,
+    parameter_names: String,
+    event_iterations: Vec<u32>,
+    event_log_evidence: Vec<f64>,
+    event_thresholds: Vec<f64>,
+    event_log_prior_volume: Vec<f64>,
+    live_positions: Vec<f64>,
+    prior_low: Vec<f64>,
+    prior_high: Vec<f64>,
+}
+
+#[wasm_bindgen]
+impl NestedTraceOutput {
+    #[wasm_bindgen(getter)]
+    pub fn log_evidence(&self) -> f64 {
+        self.log_evidence
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn log_evidence_error(&self) -> f64 {
+        self.log_evidence_error
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn expected_log_evidence(&self) -> f64 {
+        self.expected_log_evidence
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn information(&self) -> f64 {
+        self.information
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn iterations(&self) -> u32 {
+        self.iterations
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn converged(&self) -> bool {
+        self.converged
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn live_points(&self) -> u32 {
+        self.live_points
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn frame_count(&self) -> u32 {
+        self.frame_count
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn parameter_names(&self) -> String {
+        self.parameter_names.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn event_iterations(&self) -> Vec<u32> {
+        self.event_iterations.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn event_log_evidence(&self) -> Vec<f64> {
+        self.event_log_evidence.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn event_thresholds(&self) -> Vec<f64> {
+        self.event_thresholds.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn event_log_prior_volume(&self) -> Vec<f64> {
+        self.event_log_prior_volume.clone()
+    }
+
+    /// Frame-major, then point-major, then two physical coordinates.
+    #[wasm_bindgen(getter)]
+    pub fn live_positions(&self) -> Vec<f64> {
+        self.live_positions.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn prior_low(&self) -> Vec<f64> {
+        self.prior_low.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn prior_high(&self) -> Vec<f64> {
+        self.prior_high.clone()
+    }
+}
+
+fn run_nested_gaussian_impl(live_points: u32, seed: u32) -> Result<NestedTraceOutput, String> {
+    let live_points = (live_points.max(32) as usize).min(400);
+    let config = NestedConfig {
+        live_points,
+        max_iterations: 4_000,
+        remaining_evidence: 1.0e-3,
+        seed: u64::from(seed),
+        slice_steps: 30,
+        trace_stride: 1,
+        ..NestedConfig::default()
+    };
+    let mut events = Vec::new();
+    let output = run_nested(&EvidenceGaussian, &config, |event| events.push(event))
+        .map_err(|error| error.to_string())?;
+    if events.is_empty() || events.iter().any(|event| event.live_positions.is_empty()) {
+        return Err("nested sampling emitted no live-point trace".into());
+    }
+
+    let mut live_positions = Vec::with_capacity(events.len() * live_points * 2);
+    for event in &events {
+        for point in event.live_positions.chunks_exact(2) {
+            live_positions.push(EVIDENCE_LOW[0] + point[0] * (EVIDENCE_HIGH[0] - EVIDENCE_LOW[0]));
+            live_positions.push(EVIDENCE_LOW[1] + point[1] * (EVIDENCE_HIGH[1] - EVIDENCE_LOW[1]));
+        }
+    }
+    let expected_log_evidence =
+        (2.0 * std::f64::consts::PI * EVIDENCE_SIGMA[0] * EVIDENCE_SIGMA[1]
+            / ((EVIDENCE_HIGH[0] - EVIDENCE_LOW[0]) * (EVIDENCE_HIGH[1] - EVIDENCE_LOW[1])))
+            .ln();
+
+    Ok(NestedTraceOutput {
+        log_evidence: output.log_evidence,
+        log_evidence_error: output.log_evidence_error,
+        expected_log_evidence,
+        information: output.information,
+        iterations: output.iterations as u32,
+        converged: output.converged,
+        live_points: live_points as u32,
+        frame_count: events.len() as u32,
+        parameter_names: "eg_ev,ln_b".into(),
+        event_iterations: events.iter().map(|event| event.iteration as u32).collect(),
+        event_log_evidence: events.iter().map(|event| event.log_evidence).collect(),
+        event_thresholds: events
+            .iter()
+            .map(|event| event.log_likelihood_threshold)
+            .collect(),
+        event_log_prior_volume: events.iter().map(|event| event.log_prior_volume).collect(),
+        live_positions,
+        prior_low: EVIDENCE_LOW.to_vec(),
+        prior_high: EVIDENCE_HIGH.to_vec(),
+    })
+}
+
+/// Run the S2 calibration fixture and return the validated event stream.
+#[wasm_bindgen]
+pub fn run_nested_gaussian(live_points: u32, seed: u32) -> Result<NestedTraceOutput, JsValue> {
+    run_nested_gaussian_impl(live_points, seed).map_err(|error| JsValue::from_str(&error))
 }
 
 fn model_from_name(name: &str) -> Result<Model, String> {
@@ -617,6 +946,42 @@ mod tests {
             .all(|value| value.is_finite()));
         assert_eq!(output.rhat().len(), 2);
         assert_eq!(output.ess_bulk().len(), 2);
+    }
+
+    #[test]
+    fn fisher_report_recovers_the_m0_ridge() {
+        let output = fisher_report(
+            "M0",
+            &[293.15, 320.0, 350.0, 383.15],
+            3.0e-4,
+            1.253e-4,
+            &[1.002, 5.504],
+        )
+        .expect("fisher report");
+        assert_eq!(output.parameter_count(), 2);
+        assert_eq!(output.eigenvalues().len(), 2);
+        assert!(output.eigenvalues()[0] > output.eigenvalues()[1]);
+        assert!(output.condition_number() > 1.0);
+        assert!(output.ellipse_1()[0] >= output.ellipse_1()[1]);
+    }
+
+    #[test]
+    fn nested_trace_has_one_frame_per_iteration() {
+        let output = run_nested_gaussian_impl(64, 0x5eed).expect("nested trace");
+        assert_eq!(
+            output.event_iterations().len(),
+            output.iterations() as usize
+        );
+        assert_eq!(
+            output.event_log_evidence().len(),
+            output.iterations() as usize
+        );
+        assert_eq!(
+            output.live_positions().len(),
+            output.frame_count() as usize * output.live_points() as usize * 2
+        );
+        assert!(output.log_evidence().is_finite());
+        assert!((output.log_evidence() - output.expected_log_evidence()).abs() < 0.5);
     }
 
     #[test]

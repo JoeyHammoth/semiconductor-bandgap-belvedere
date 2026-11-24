@@ -58,6 +58,7 @@ pub enum ModelError {
     NonFinite,
     NonPositiveCurrent,
     NonPositiveSigma,
+    Unsupported,
 }
 
 impl std::fmt::Display for ModelError {
@@ -68,6 +69,10 @@ impl std::fmt::Display for ModelError {
             Self::NonFinite => write!(f, "observations must be finite"),
             Self::NonPositiveCurrent => write!(f, "current must be positive"),
             Self::NonPositiveSigma => write!(f, "likelihood sigma must be positive"),
+            Self::Unsupported => write!(
+                f,
+                "the requested calculation is not implemented for this model"
+            ),
         }
     }
 }
@@ -545,6 +550,80 @@ impl Case {
             .collect()
     }
 
+    /// Jacobian of the noiseless forward model with respect to the reported
+    /// parameters, using forward-mode AD. The sloppiness work currently uses
+    /// M0 and M1; the transformed M2-M4 coordinates are intentionally rejected
+    /// rather than silently mixing latent and reported derivatives.
+    pub fn observation_jacobian_reported(
+        &self,
+        reported: &[f64],
+    ) -> Result<Vec<Vec<f64>>, ModelError> {
+        if reported.len() != self.latent_len() {
+            return Err(ModelError::LengthMismatch);
+        }
+        if reported.iter().any(|value| !value.is_finite()) {
+            return Err(ModelError::NonFinite);
+        }
+        if !matches!(self.model, Model::M0 | Model::M1) {
+            return Err(ModelError::Unsupported);
+        }
+
+        let mut jacobian = Vec::with_capacity(self.temperature_k.len());
+        for temperature in &self.temperature_k {
+            let mut row = Vec::with_capacity(reported.len());
+            for parameter in 0..reported.len() {
+                let mut dual = reported
+                    .iter()
+                    .copied()
+                    .map(Dual::constant)
+                    .collect::<Vec<_>>();
+                dual[parameter] = Dual::variable(reported[parameter]);
+                let latent = if self.model == Model::M1 {
+                    vec![
+                        dual[0],
+                        dual[1] + dual[2] * Dual::constant(REFERENCE_TEMPERATURE_K.ln()),
+                        dual[2],
+                    ]
+                } else {
+                    dual
+                };
+                let value = self.forward(&latent, *temperature);
+                if !value.value().is_finite() || !value.derivative().is_finite() {
+                    return Err(ModelError::NonFinite);
+                }
+                row.push(value.derivative());
+            }
+            jacobian.push(row);
+        }
+        Ok(jacobian)
+    }
+
+    /// Gaussian pointwise log likelihood for one latent draw. This is the
+    /// input to PSIS-LOO; it excludes the prior and includes the normalising
+    /// constant so the resulting elpd is on an absolute scale.
+    pub fn pointwise_log_likelihood(&self, theta: &[f64]) -> Result<Vec<f64>, ModelError> {
+        if theta.len() != self.latent_len() {
+            return Err(ModelError::LengthMismatch);
+        }
+        if theta.iter().any(|value| !value.is_finite()) {
+            return Err(ModelError::NonFinite);
+        }
+        let predicted = self.predicted_voltage(theta);
+        let mut values = Vec::with_capacity(predicted.len());
+        for (prediction, observation) in predicted.iter().zip(&self.voltage_v) {
+            if !prediction.is_finite() {
+                return Err(ModelError::NonFinite);
+            }
+            let residual = (prediction - observation) / self.sigma_v;
+            values.push(
+                -0.5 * residual * residual
+                    - self.sigma_v.ln()
+                    - 0.5 * (2.0 * std::f64::consts::PI).ln(),
+            );
+        }
+        Ok(values)
+    }
+
     fn forward<T: Scalar>(&self, theta: &[T], temperature_k: f64) -> T {
         let (eg0, ln_b_ref, alpha, beta, eta, ideality, series_resistance) = match self.model {
             Model::M0 => (
@@ -923,6 +1002,88 @@ fn inverse_normal_cdf_scalar<T: Scalar>(probability: T) -> T {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reported_jacobian_agrees_with_a_finite_difference() {
+        let temperatures = vec![220.0, 300.0, 383.15];
+        let voltages = vec![0.8, 0.7, 0.6];
+        let cases = [
+            (Model::M0, vec![1.002, 5.504]),
+            (Model::M1, vec![1.002, 5.504 - 3.0 * 300.0_f64.ln(), 3.0]),
+        ];
+        for (model, reported) in cases {
+            let case = Case::new(
+                model,
+                temperatures.clone(),
+                voltages.clone(),
+                3.0e-4,
+                1.253e-4,
+            )
+            .expect("valid case");
+            let jacobian = case
+                .observation_jacobian_reported(&reported)
+                .expect("jacobian");
+            for (observation, (row, temperature)) in jacobian.iter().zip(&temperatures).enumerate()
+            {
+                for parameter in 0..reported.len() {
+                    let step = 1.0e-6 * reported[parameter].abs().max(1.0);
+                    let mut plus = reported.clone();
+                    let mut minus = reported.clone();
+                    plus[parameter] += step;
+                    minus[parameter] -= step;
+                    let plus_value = if model == Model::M1 {
+                        case.predicted_voltage(&[
+                            plus[0],
+                            plus[1] + plus[2] * 300.0_f64.ln(),
+                            plus[2],
+                        ])[observation]
+                    } else {
+                        case.predicted_voltage(&plus)[observation]
+                    };
+                    let minus_value = if model == Model::M1 {
+                        case.predicted_voltage(&[
+                            minus[0],
+                            minus[1] + minus[2] * 300.0_f64.ln(),
+                            minus[2],
+                        ])[observation]
+                    } else {
+                        case.predicted_voltage(&minus)[observation]
+                    };
+                    let numeric = (plus_value - minus_value) / (2.0 * step);
+                    assert!(
+                        (row[parameter] - numeric).abs() <= 1.0e-7 * (1.0 + numeric.abs()),
+                        "{model:?} at {temperature} K parameter {parameter}: {} vs {numeric}",
+                        row[parameter]
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn pointwise_log_likelihood_sums_to_the_gaussian_likelihood() {
+        let case = Case::new(
+            Model::M0,
+            vec![300.0, 320.0, 340.0],
+            vec![0.65, 0.63, 0.61],
+            3.0e-4,
+            1.2e-4,
+        )
+        .expect("valid case");
+        let theta = vec![1.0, 5.0];
+        let pointwise = case
+            .pointwise_log_likelihood(&theta)
+            .expect("pointwise likelihood");
+        let total = pointwise.iter().sum::<f64>();
+        for (prediction, observation) in case.predicted_voltage(&theta).iter().zip(&case.voltage_v)
+        {
+            let residual = (prediction - observation) / case.sigma_v;
+            let expected = -0.5 * residual * residual;
+            assert!(expected.is_finite());
+        }
+        assert!(total.is_finite());
+        assert_eq!(pointwise.len(), case.voltage_v.len());
+    }
 
     #[test]
     fn reported_round_trips_through_the_latent_transform() {
