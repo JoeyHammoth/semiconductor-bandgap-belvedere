@@ -92,7 +92,7 @@ Phase 1 validation is simulation-only. The original recordings were lost (ADR 00
 | `/infer` labels the case synthetic | Playwright `/infer/`; visible synthetic chip and provenance note | no measured-data or Table 1 reproduction claim | wired (local Playwright) |
 | `/infer` renders only the Rust diagnostics verdict | Playwright Chromium production M0 run; badge `data-pass` from `SamplerResult` | pass badge only when Rust gates pass | wired (local Playwright) |
 | S1 renders posterior draws and predictive band | Playwright Chromium production M0 run; canvas labels and table | synthetic observations; 500 posterior curves | wired (local Playwright) |
-| `/infer` has no serious axe violations | Playwright + axe-core on `/infer/` | zero serious/critical | wired (local Playwright) |
+| `/infer` has no serious axe violations | Playwright + axe-core on `/infer/` | zero serious/critical | verified (CI; e2e + a11y) |
 
 ## 8. How to run
 
