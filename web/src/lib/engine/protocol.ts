@@ -126,6 +126,51 @@ export interface NestedTraceResult {
   priorHigh: Float64Array;
 }
 
+export interface SvgdComparisonRequest {
+  model: string;
+  temperatureK: Float64Array;
+  voltageV: Float64Array;
+  currentA: number;
+  sigmaV: number;
+  /** Parameter-major MCLMC draws. */
+  mclmcDraws: Float64Array;
+  parameterCount: number;
+  drawsPerParameter: number;
+  particles: number;
+  iterations: number;
+  /** Step size in prior-standardised coordinates. */
+  stepSize: number;
+  /** RBF bandwidth in prior-standardised coordinates. */
+  bandwidth: number;
+  seed: number;
+  traceFrames: number;
+}
+
+export interface SvgdComparisonResult {
+  parameterNames: string[];
+  parameterCount: number;
+  particleCount: number;
+  frameCount: number;
+  iterations: number;
+  /** Frame-major, particle-major, parameter-major reported coordinates. */
+  trajectory: Float64Array;
+  /** Final particles, particle-major, reported coordinates. */
+  particles: Float64Array;
+  svgdMean: Float64Array;
+  svgdVariance: Float64Array;
+  mclmcMean: Float64Array;
+  mclmcVariance: Float64Array;
+  /** Evenly subsampled MCLMC draws used for the overlay and W2. */
+  mclmcParticles: Float64Array;
+  mclmcParticleCount: number;
+  /** Sliced-W2 in prior-standardised units. */
+  w2Distance: number;
+  w2BootstrapSe: number;
+  bandwidth: number;
+  stepSize: number;
+  finalLogpMean: number;
+}
+
 export type Request =
   | { id: number; kind: 'init'; base: string; module?: WebAssembly.Module }
   | { id: number; kind: 'version' }
@@ -149,7 +194,8 @@ export type Request =
       sigmaV: number;
       reported: Float64Array;
     }
-  | { id: number; kind: 'nested'; livePoints: number; seed: number };
+  | { id: number; kind: 'nested'; livePoints: number; seed: number }
+  | ({ id: number; kind: 'svgd' } & SvgdComparisonRequest);
 
 export type Response =
   | { id: number; ok: true; kind: 'ready' }
@@ -160,6 +206,7 @@ export type Response =
   | { id: number; ok: true; kind: 'diagnostics'; value: DiagnosticsResult }
   | { id: number; ok: true; kind: 'fisher'; value: FisherResult }
   | { id: number; ok: true; kind: 'nested'; value: NestedTraceResult }
+  | { id: number; ok: true; kind: 'svgd'; value: SvgdComparisonResult }
   | { id: number; ok: false; error: string };
 
 /** The wasm-bindgen class shape, including its snake_case getters. */
@@ -239,6 +286,28 @@ export interface WasmNestedTraceOutput {
   free: () => void;
 }
 
+export interface WasmSvgdOutput {
+  readonly parameter_names: string;
+  readonly parameter_count: number;
+  readonly particle_count: number;
+  readonly frame_count: number;
+  readonly iterations: number;
+  readonly trajectory: Float64Array;
+  readonly particles: Float64Array;
+  readonly svgd_mean: Float64Array;
+  readonly svgd_variance: Float64Array;
+  readonly mclmc_mean: Float64Array;
+  readonly mclmc_variance: Float64Array;
+  readonly mclmc_particles: Float64Array;
+  readonly mclmc_particle_count: number;
+  readonly w2_distance: number;
+  readonly w2_bootstrap_se: number;
+  readonly bandwidth: number;
+  readonly step_size: number;
+  readonly final_logp_mean: number;
+  free: () => void;
+}
+
 export interface CoreModule {
   default: (init: unknown) => Promise<unknown>;
   initSync?: (init: { module: WebAssembly.Module }) => unknown;
@@ -294,4 +363,20 @@ export interface CoreModule {
     reported: Float64Array,
   ) => WasmFisherOutput;
   run_nested_gaussian: (livePoints: number, seed: number) => WasmNestedTraceOutput;
+  run_svgd_comparison: (
+    model: string,
+    temperatureK: Float64Array,
+    voltageV: Float64Array,
+    currentA: number,
+    sigmaV: number,
+    mclmcDraws: Float64Array,
+    parameterCount: number,
+    drawsPerParameter: number,
+    particles: number,
+    iterations: number,
+    stepSize: number,
+    bandwidth: number,
+    seed: number,
+    traceFrames: number,
+  ) => WasmSvgdOutput;
 }

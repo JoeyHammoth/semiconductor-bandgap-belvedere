@@ -2,9 +2,16 @@
   import { onMount } from 'svelte';
   import { wasmBase } from '../../lib/engine/base';
   import { EnginePool } from '../../lib/engine/pool';
-  import type { FisherResult, NestedTraceResult } from '../../lib/engine/protocol';
+  import type {
+    FisherResult,
+    NestedTraceResult,
+    SamplerResult,
+    SvgdComparisonResult,
+  } from '../../lib/engine/protocol';
+  import { loadInferCase, type InferCase } from '../../lib/infer/case';
   import Sloppiness from '../../lib/scenes/Sloppiness.svelte';
   import ShrinkingLight from '../../lib/scenes/ShrinkingLight.svelte';
+  import Swarm from '../../lib/scenes/Swarm.svelte';
   import StatusBar from '../../lib/ui/StatusBar.svelte';
 
   interface SloppinessCase {
@@ -22,11 +29,31 @@
 
   const NESTED_SEED = 0x5eed;
   const NESTED_LIVE_POINTS = 128;
+  const SWARM_SEED = 0x5357_4152;
+  const SWARM_PARTICLES = 192;
+  const SWARM_ITERATIONS = 240;
+  const SWARM_TRACE_FRAMES = 48;
+  const SWARM_MCLMC = {
+    chains: 2,
+    warmup: 400,
+    draws: 800,
+    seed: 0x5357_0001,
+    pilotSeed: 0x5357_0001,
+    targetAccept: 0.995,
+    initialStep: 0.4,
+    meanTrajectorySteps: 8,
+    energyErrorLimit: 0.1,
+  };
 
   let pool: EnginePool | null = null;
   let caseData = $state<SloppinessCase | null>(null);
+  let swarmCase = $state<InferCase | null>(null);
   let fisher = $state<FisherResult | null>(null);
   let nested = $state<NestedTraceResult | null>(null);
+  let swarm = $state<SvgdComparisonResult | null>(null);
+  let swarmMclmc = $state<SamplerResult | null>(null);
+  let swarmError = $state<string | null>(null);
+  let swarmRunning = $state(false);
   let low = $state(220);
   let high = $state(383.15);
   let min = $state(220);
@@ -127,17 +154,71 @@
     nested = result.value as NestedTraceResult;
   }
 
+  async function runSwarm(bandwidth: number, step: number) {
+    if (!swarmCase || !pool || swarmRunning) return;
+    swarmRunning = true;
+    swarmError = null;
+    swarm = null;
+    swarmMclmc = null;
+    try {
+      const observations = swarmCase.observations;
+      const sampled = await pool.samplerParallel({
+        model: swarmCase.model,
+        temperatureK: new Float64Array(observations.temperature_k),
+        voltageV: new Float64Array(observations.voltage_v),
+        currentA: observations.current_a,
+        sigmaV: observations.noise.likelihood_sigma_v,
+        config: SWARM_MCLMC,
+      });
+      if (!sampled.ok) throw new Error(sampled.error);
+      const sampledValue = sampled.value;
+      if (typeof sampledValue !== 'object' || sampledValue === null || !('draws' in sampledValue)) {
+        throw new Error('MCLMC returned no draws for S3');
+      }
+      const mclmcValue = sampledValue as SamplerResult;
+      swarmMclmc = mclmcValue;
+
+      const compared = await pool.svgdComparison({
+        model: swarmCase.model,
+        temperatureK: new Float64Array(observations.temperature_k),
+        voltageV: new Float64Array(observations.voltage_v),
+        currentA: observations.current_a,
+        sigmaV: observations.noise.likelihood_sigma_v,
+        mclmcDraws: mclmcValue.draws,
+        parameterCount: mclmcValue.parameterCount,
+        drawsPerParameter: mclmcValue.drawsPerParameter,
+        particles: SWARM_PARTICLES,
+        iterations: SWARM_ITERATIONS,
+        stepSize: step,
+        bandwidth,
+        seed: SWARM_SEED,
+        traceFrames: SWARM_TRACE_FRAMES,
+      });
+      if (!compared.ok) throw new Error(compared.error);
+      const value = compared.value;
+      if (typeof value !== 'object' || value === null || !('trajectory' in value)) {
+        throw new Error('SVGD returned no trajectory');
+      }
+      swarm = value as SvgdComparisonResult;
+    } catch (cause) {
+      swarmError = cause instanceof Error ? cause.message : String(cause);
+    } finally {
+      swarmRunning = false;
+    }
+  }
+
   onMount(() => {
     daylight = localStorage.getItem('bgo-theme') === 'daylight';
     applyTheme();
     reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     mounted = true;
-    pool = new EnginePool(1, wasmBase());
+    pool = new EnginePool(2, wasmBase());
     void (async () => {
       try {
-        const value = await loadCase();
+        const [value, swarmValue] = await Promise.all([loadCase(), loadInferCase()]);
         if (!mounted) return;
         caseData = value;
+        swarmCase = swarmValue;
         min = value.observations.temperature_k[0];
         max = value.observations.temperature_k[value.observations.temperature_k.length - 1];
         low = min;
@@ -172,7 +253,7 @@
   <title>Evidence — Band-Gap Observatory</title>
   <meta
     name="description"
-    content="Nested-sampling live points and Fisher sloppiness computed in Rust/WASM from labelled synthetic cases."
+    content="Nested-sampling live points, SVGD particles, sliced-Wasserstein and Fisher sloppiness computed in Rust/WASM from labelled synthetic cases."
   />
 </svelte:head>
 
@@ -186,6 +267,7 @@
       <a href="../">Observatory</a>
       <a href="../infer/">Infer</a>
       <a href="#s2">S2</a>
+      <a href="#s3">S3</a>
       <a href="#s4">S4</a>
       <a href="../ledger/">Ledger</a>
       <button class="theme" type="button" onclick={toggleTheme} aria-pressed={daylight}>
@@ -201,7 +283,9 @@
       <p class="lede">
         Nested sampling contracts a live set while the evidence accumulates. Fisher information
         turns the same synthetic model into a sloppy ellipsoid: a few parameter combinations are
-        stiff, and the rest are nearly free. Both numbers are computed in Rust, not in the scene.
+        stiff, and the rest are nearly free. Stein particles move through that standardised space
+        and are compared with MCLMC by sliced-Wasserstein. Every number is computed in Rust, not in
+        the scene.
       </p>
       <div class="chips" aria-label="Provenance labels">
         <span class="chip">Synthetic cases</span>
@@ -234,6 +318,28 @@
       />
     </section>
 
+    <section id="s3" aria-labelledby="s3-title">
+      <div class="section-head">
+        <p class="eyebrow">S3 · synthetic M0 · Stein variational inference</p>
+        <h2 id="s3-title">The Swarm</h2>
+      </div>
+      <p class="section-lede">
+        Watch particles contract under attraction and repulsion, then compare the final cloud with
+        the MCLMC reference. The sliced-W2 number uses prior-standardised coordinates; the bootstrap
+        reports projection noise, and the variance ratio shows the SVGD bias rather than hiding it.
+      </p>
+      <Swarm
+        result={swarm}
+        mclmc={swarmMclmc}
+        ready={Boolean(swarmCase)}
+        running={swarmRunning}
+        error={swarmError}
+        {reducedMotion}
+        theme={daylight ? 'daylight' : 'darkroom'}
+        onrun={runSwarm}
+      />
+    </section>
+
     <section id="s4" aria-labelledby="s4-title">
       <div class="section-head">
         <p class="eyebrow">S4 · synthetic M1 · local Fisher geometry</p>
@@ -255,10 +361,13 @@
       <h2 id="method-title">Local geometry, synthetic input</h2>
       <p>
         S2 uses a two-dimensional Gaussian fixture whose evidence is available in closed form; it is
-        not the M0 posterior. S4 linearises the M1 forward model at the committed synthetic
-        posterior mean. The Fisher inverse is a local Gaussian approximation, not a replacement for
-        the full posterior when the eta prior or parameter bounds dominate. The M0
-        Fisher-versus-posterior check is the committed near-Gaussian validation.
+        not the M0 posterior. S3 runs deterministic SVGD on the two-parameter synthetic M0 target;
+        its RBF kernel can contract the cloud, so the sliced-W2 and variance ratio are reported
+        against MCLMC rather than treated as an unbiased posterior. S4 linearises the M1 forward
+        model at the committed synthetic posterior mean. The Fisher inverse is a local Gaussian
+        approximation, not a replacement for the full posterior when the eta prior or parameter
+        bounds dominate. The M0 Fisher-versus-posterior check is the committed near-Gaussian
+        validation.
       </p>
     </section>
   </main>

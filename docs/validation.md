@@ -65,8 +65,8 @@ Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff
 | Claim | Test | Tolerance | Status |
 |---|---|---|---|
 | Sinkhorn matches exact 1D transport | analytic 1D fixture | ≤ 1e-6 after convergence | pending |
-| Sliced-W2 noise floor is quantified | bootstrap | reported with the point estimate | pending |
-| SVGD converges on a Gaussian | analytic target | mean within 0.05 σ; variance bias documented | pending |
+| Sliced-W2 noise floor is quantified | `cargo test -p bgo-ot`; Playwright S3 | bootstrap over random projections; reported with the point estimate | verified (unit + Chromium e2e) |
+| SVGD converges on a Gaussian | `cargo test -p bgo-infer svgd` | mean within 0.05 σ; variance bias reported separately | verified (unit) |
 | NPE matches PyTorch golden vectors | exported vectors | ≤ 1e-5 relative on log-prob | pending |
 | SBC is uniform | 1000 simulations | chi-square p > 0.01 | pending |
 | TARP coverage is nominal | α grid | max deviation ≤ 0.03 | pending |
@@ -103,6 +103,7 @@ Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff
 | Evidence ledger publishes evidence, Bayes factor, PSIS-LOO SE, Pareto-k and prior-sensitivity flag | committed [`evidence-ledger.json`](../web/static/data/evidence-ledger.json); Playwright `/ledger/` | synthetic contract; M0 Pareto-k > 0.7 shown, not hidden | verified (artifact + Chromium e2e) |
 | Committed evidence ledger matches a fresh regeneration | `.github/workflows/ledger.yml`; `python -m bgo_train.evidence --check` | engine/ArviZ and settings exact; `ln Z` 0.5 nat; ELPD 5; Pareto-k 0.1 | verified (CI; fresh regeneration) |
 | S2 scrubber and S4 sliders are keyboard operable | Playwright `/evidence/`; Home/End and arrow keys | frame, temperature bounds and Fisher summary update | verified (CI e2e; Chromium, Firefox, WebKit) |
+| S3 compares deterministic SVGD with MCLMC | Playwright `/evidence/`; S3 run and keyboard sliders | finite sliced-W2 with bootstrap SE, variance-ratio table, accessible equivalent | verified (unit + Chromium e2e) |
 | `/ledger` has no serious axe violations | Playwright + axe-core on `/ledger/` | zero serious/critical | verified (Chromium e2e + a11y) |
 
 ## 8. How to run
