@@ -1,23 +1,14 @@
 name: evidence ledger
 
+# Keep this workflow unfiltered: branch protection requires `fresh regeneration`
+# on every pull request, so the check must always report a result.
 on:
   pull_request:
-    paths:
-      - "train/src/bgo_train/evidence.py"
-      - "train/references/m1.json"
-      - "web/static/data/evidence-ledger.json"
-      - "train/pyproject.toml"
-      - "train/uv.lock"
-      - ".github/workflows/ledger.yml"
   push:
     branches: [main]
-    paths:
-      - "train/src/bgo_train/evidence.py"
-      - "train/references/m1.json"
-      - "web/static/data/evidence-ledger.json"
-      - "train/pyproject.toml"
-      - "train/uv.lock"
-      - ".github/workflows/ledger.yml"
+  schedule:
+    # Monthly, so drift is caught even when no ledger input changes.
+    - cron: "17 6 1 * *"
   workflow_dispatch:
 
 permissions:

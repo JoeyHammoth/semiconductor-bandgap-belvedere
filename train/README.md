@@ -76,9 +76,8 @@ uv run --with dynesty==3.2.0 python -m bgo_train.evidence --check
 The check uses a temporary cache, so it cannot pass on a stale cached run. It
 requires the dynesty, ArviZ and sampler settings to match exactly, while
 allowing 0.5 nat for `ln Z`, 5 for ELPD and 0.1 for Pareto-k to absorb
-cross-platform draw noise. The path-filtered `evidence ledger` CI workflow
-runs the same check when the generator, reference, artifact or Python lock
-changes.
+cross-platform draw noise. The `evidence ledger` CI workflow runs the same
+check on every pull request and main push, and monthly on the default branch.
 
 Run the Python tests and lint:
 
