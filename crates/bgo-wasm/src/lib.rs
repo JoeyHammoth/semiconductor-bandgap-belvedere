@@ -7,10 +7,11 @@
 #![forbid(unsafe_code)]
 
 use bgo_infer::{
-    bulk_ess, run_nested, split_rhat, Case, Diagnostics, LogLikePrior, MclmcConfig, MclmcOutput,
-    Model, NestedConfig,
+    bulk_ess, run_nested, run_svgd, split_rhat, Case, Diagnostics, LogLikePrior, MclmcConfig,
+    MclmcOutput, Model, NestedConfig, SvgdConfig, SvgdTarget,
 };
 use bgo_info::{analyze_fisher, covariance_ellipse, fisher_from_jacobian};
+use bgo_ot::sliced_wasserstein_2;
 use wasm_bindgen::prelude::*;
 
 /// Core version, rendered in the status bar.
@@ -887,6 +888,406 @@ pub fn run_sampler(
     .map_err(|error| JsValue::from_str(&error))
 }
 
+/// Standardise a model target so one isotropic RBF bandwidth is meaningful
+/// across parameters with very different prior scales.
+struct StandardizedCaseTarget<'a> {
+    case: &'a Case,
+    center: Vec<f64>,
+    scale: Vec<f64>,
+}
+
+impl SvgdTarget for StandardizedCaseTarget<'_> {
+    fn dimension(&self) -> usize {
+        self.case.latent_len()
+    }
+
+    fn logp_and_grad(&self, standardised: &[f64]) -> (f64, Vec<f64>) {
+        if standardised.len() != self.center.len() {
+            return (f64::NEG_INFINITY, vec![0.0; self.center.len()]);
+        }
+        let theta = self
+            .center
+            .iter()
+            .zip(&self.scale)
+            .zip(standardised)
+            .map(|((center, scale), value)| center + scale * value)
+            .collect::<Vec<_>>();
+        let (logp, gradient) = self.case.logp_and_grad(&theta);
+        let gradient = gradient
+            .iter()
+            .zip(&self.scale)
+            .map(|(value, scale)| value * scale)
+            .collect();
+        (logp, gradient)
+    }
+}
+
+struct SvgdRng(u64);
+
+impl SvgdRng {
+    fn new(seed: u64) -> Self {
+        Self(seed ^ 0x9e37_79b9_7f4a_7c15)
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        self.0 = self.0.wrapping_add(0x9e37_79b9_7f4a_7c15);
+        let mut value = self.0;
+        value = (value ^ (value >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+        value = (value ^ (value >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+        value ^ (value >> 31)
+    }
+
+    fn uniform(&mut self) -> f64 {
+        ((self.next_u64() >> 11) as f64 + 0.5) / ((1u64 << 53) as f64)
+    }
+
+    fn normal(&mut self) -> f64 {
+        let first = self.uniform();
+        let second = self.uniform();
+        (-2.0 * first.ln()).sqrt() * (2.0 * std::f64::consts::PI * second).cos()
+    }
+}
+
+/// SVGD particle trajectory and the MCLMC/W2 comparison for S3.
+#[wasm_bindgen]
+pub struct SvgdOutput {
+    parameter_names: String,
+    parameter_count: u32,
+    particle_count: u32,
+    frame_count: u32,
+    iterations: u32,
+    trajectory: Vec<f64>,
+    particles: Vec<f64>,
+    svgd_mean: Vec<f64>,
+    svgd_variance: Vec<f64>,
+    mclmc_mean: Vec<f64>,
+    mclmc_variance: Vec<f64>,
+    mclmc_particles: Vec<f64>,
+    mclmc_particle_count: u32,
+    w2_distance: f64,
+    w2_bootstrap_se: f64,
+    bandwidth: f64,
+    step_size: f64,
+    final_logp_mean: f64,
+}
+
+#[wasm_bindgen]
+impl SvgdOutput {
+    #[wasm_bindgen(getter)]
+    pub fn parameter_names(&self) -> String {
+        self.parameter_names.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn parameter_count(&self) -> u32 {
+        self.parameter_count
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn particle_count(&self) -> u32 {
+        self.particle_count
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn frame_count(&self) -> u32 {
+        self.frame_count
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn iterations(&self) -> u32 {
+        self.iterations
+    }
+
+    /// Frame-major, particle-major, parameter-major reported coordinates.
+    #[wasm_bindgen(getter)]
+    pub fn trajectory(&self) -> Vec<f64> {
+        self.trajectory.clone()
+    }
+
+    /// Final particles, particle-major, reported coordinates.
+    #[wasm_bindgen(getter)]
+    pub fn particles(&self) -> Vec<f64> {
+        self.particles.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn svgd_mean(&self) -> Vec<f64> {
+        self.svgd_mean.clone()
+    }
+
+    /// Population variance of the SVGD cloud, in reported units.
+    #[wasm_bindgen(getter)]
+    pub fn svgd_variance(&self) -> Vec<f64> {
+        self.svgd_variance.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn mclmc_mean(&self) -> Vec<f64> {
+        self.mclmc_mean.clone()
+    }
+
+    /// Population variance of the MCLMC draws, in reported units.
+    #[wasm_bindgen(getter)]
+    pub fn mclmc_variance(&self) -> Vec<f64> {
+        self.mclmc_variance.clone()
+    }
+
+    /// Evenly subsampled MCLMC draws used for the visual overlay and W2.
+    #[wasm_bindgen(getter)]
+    pub fn mclmc_particles(&self) -> Vec<f64> {
+        self.mclmc_particles.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn mclmc_particle_count(&self) -> u32 {
+        self.mclmc_particle_count
+    }
+
+    /// Sliced-W2 in prior-standardised units.
+    #[wasm_bindgen(getter)]
+    pub fn w2_distance(&self) -> f64 {
+        self.w2_distance
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn w2_bootstrap_se(&self) -> f64 {
+        self.w2_bootstrap_se
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn bandwidth(&self) -> f64 {
+        self.bandwidth
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn step_size(&self) -> f64 {
+        self.step_size
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn final_logp_mean(&self) -> f64 {
+        self.final_logp_mean
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn run_svgd_comparison_impl(
+    model: &str,
+    temperature_k: &[f64],
+    voltage_v: &[f64],
+    current_a: f64,
+    sigma_v: f64,
+    mclmc_draws: &[f64],
+    parameter_count: u32,
+    draws_per_parameter: u32,
+    particles: u32,
+    iterations: u32,
+    step_size: f64,
+    bandwidth: f64,
+    seed: u32,
+    trace_frames: u32,
+) -> Result<SvgdOutput, String> {
+    let case = Case::new(
+        model_from_name(model)?,
+        temperature_k.to_vec(),
+        voltage_v.to_vec(),
+        current_a,
+        sigma_v,
+    )
+    .map_err(|error| error.to_string())?;
+    if case.model != Model::M0 {
+        return Err("S3 currently uses the two-parameter M0 target".into());
+    }
+    let dimension = case.latent_len();
+    let parameter_count = parameter_count as usize;
+    let draws_per_parameter = draws_per_parameter as usize;
+    if parameter_count != dimension {
+        return Err("MCLMC parameter count does not match the S3 target".into());
+    }
+    if draws_per_parameter < 2
+        || mclmc_draws.len() != parameter_count.saturating_mul(draws_per_parameter)
+    {
+        return Err("MCLMC draw dimensions do not match the S3 target".into());
+    }
+    if !(8..=512).contains(&particles) {
+        return Err("S3 particle count must be between 8 and 512".into());
+    }
+    if !(1..=2_000).contains(&iterations) {
+        return Err("S3 iterations must be between 1 and 2000".into());
+    }
+    if !(2..=iterations).contains(&trace_frames) {
+        return Err("S3 trace frames must be between 2 and the iteration count".into());
+    }
+    if !step_size.is_finite() || step_size <= 0.0 || !bandwidth.is_finite() || bandwidth <= 0.0 {
+        return Err("S3 step size and bandwidth must be positive and finite".into());
+    }
+
+    let center = case.prior_center();
+    let scale = case.prior_scales();
+    let target = StandardizedCaseTarget {
+        case: &case,
+        center: center.clone(),
+        scale: scale.clone(),
+    };
+    let mut rng = SvgdRng::new(u64::from(seed));
+    let mut initial = Vec::with_capacity(particles as usize);
+    for _ in 0..particles {
+        let mut particle = Vec::with_capacity(dimension);
+        for _ in 0..dimension {
+            particle.push(rng.normal().clamp(-2.5, 2.5));
+        }
+        initial.push(particle);
+    }
+    let trace_every = (iterations as usize / trace_frames as usize).max(1);
+    let svgd = run_svgd(
+        &target,
+        &initial,
+        &SvgdConfig {
+            iterations: iterations as usize,
+            step_size,
+            bandwidth,
+            trace_every,
+        },
+    )
+    .map_err(|error| error.to_string())?;
+
+    let mut trajectory = Vec::with_capacity(svgd.trajectory.len() * particles as usize * dimension);
+    for frame in &svgd.trajectory {
+        for particle in frame {
+            for (coordinate, value) in particle.iter().enumerate() {
+                trajectory.push(center[coordinate] + scale[coordinate] * value);
+            }
+        }
+    }
+    let particles_flat = svgd
+        .particles
+        .iter()
+        .flat_map(|particle| {
+            particle
+                .iter()
+                .enumerate()
+                .map(|(coordinate, value)| center[coordinate] + scale[coordinate] * value)
+        })
+        .collect::<Vec<_>>();
+    let svgd_mean = center
+        .iter()
+        .zip(&scale)
+        .zip(&svgd.mean)
+        .map(|((center, scale), value)| center + scale * value)
+        .collect::<Vec<_>>();
+    let svgd_variance = scale
+        .iter()
+        .zip(&svgd.variance)
+        .map(|(scale, value)| scale * scale * value)
+        .collect::<Vec<_>>();
+
+    let mut mclmc_mean = vec![0.0; parameter_count];
+    let mut mclmc_variance = vec![0.0; parameter_count];
+    for parameter in 0..parameter_count {
+        let values = (0..draws_per_parameter)
+            .map(|draw| mclmc_draws[parameter * draws_per_parameter + draw])
+            .collect::<Vec<_>>();
+        let mean = values.iter().sum::<f64>() / values.len() as f64;
+        let variance = values
+            .iter()
+            .map(|value| {
+                let difference = value - mean;
+                difference * difference
+            })
+            .sum::<f64>()
+            / values.len() as f64;
+        mclmc_mean[parameter] = mean;
+        mclmc_variance[parameter] = variance;
+    }
+
+    let comparison_count = (particles as usize).min(draws_per_parameter);
+    let mut mclmc_particles = Vec::with_capacity(comparison_count * parameter_count);
+    let mut mclmc_standardised = Vec::with_capacity(comparison_count);
+    for index in 0..comparison_count {
+        let draw = index * draws_per_parameter / comparison_count;
+        let mut point = Vec::with_capacity(parameter_count);
+        let mut standardised = Vec::with_capacity(parameter_count);
+        for parameter in 0..parameter_count {
+            let value = mclmc_draws[parameter * draws_per_parameter + draw];
+            point.push(value);
+            standardised.push((value - center[parameter]) / scale[parameter]);
+        }
+        mclmc_particles.extend(point);
+        mclmc_standardised.push(standardised);
+    }
+
+    let w2 = sliced_wasserstein_2(
+        &svgd.particles,
+        &mclmc_standardised,
+        96,
+        128,
+        u64::from(seed) ^ 0x9e37_79b9_7f4a_7c15,
+    )
+    .map_err(|error| error.to_string())?;
+
+    Ok(SvgdOutput {
+        parameter_names: case.parameter_names().join(","),
+        parameter_count: parameter_count as u32,
+        particle_count: particles,
+        frame_count: svgd.trajectory.len() as u32,
+        iterations,
+        trajectory,
+        particles: particles_flat,
+        svgd_mean,
+        svgd_variance,
+        mclmc_mean,
+        mclmc_variance,
+        mclmc_particles,
+        mclmc_particle_count: comparison_count as u32,
+        w2_distance: w2.distance,
+        w2_bootstrap_se: w2.bootstrap_standard_error,
+        bandwidth,
+        step_size,
+        final_logp_mean: svgd.final_logp_mean,
+    })
+}
+
+/// Run SVGD on the M0 target and compare its final cloud with MCLMC draws.
+///
+/// The W2 distance is computed in prior-standardised coordinates so the
+/// `E_g` and `ln B` scales cannot dominate the comparison arbitrarily.
+#[wasm_bindgen]
+#[allow(clippy::too_many_arguments)]
+pub fn run_svgd_comparison(
+    model: &str,
+    temperature_k: &[f64],
+    voltage_v: &[f64],
+    current_a: f64,
+    sigma_v: f64,
+    mclmc_draws: &[f64],
+    parameter_count: u32,
+    draws_per_parameter: u32,
+    particles: u32,
+    iterations: u32,
+    step_size: f64,
+    bandwidth: f64,
+    seed: u32,
+    trace_frames: u32,
+) -> Result<SvgdOutput, JsValue> {
+    run_svgd_comparison_impl(
+        model,
+        temperature_k,
+        voltage_v,
+        current_a,
+        sigma_v,
+        mclmc_draws,
+        parameter_count,
+        draws_per_parameter,
+        particles,
+        iterations,
+        step_size,
+        bandwidth,
+        seed,
+        trace_frames,
+    )
+    .map_err(|error| JsValue::from_str(&error))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -982,6 +1383,55 @@ mod tests {
         );
         assert!(output.log_evidence().is_finite());
         assert!((output.log_evidence() - output.expected_log_evidence()).abs() < 0.5);
+    }
+
+    #[test]
+    fn svgd_comparison_returns_a_finite_w2() {
+        let temperature = [293.15, 320.0, 350.0, 383.15];
+        let voltage = [0.65775, 0.65025, 0.6409, 0.6298];
+        let draws_per_parameter = 64usize;
+        let mut draws = Vec::with_capacity(2 * draws_per_parameter);
+        for parameter in 0..2 {
+            for draw in 0..draws_per_parameter {
+                let offset = (draw as f64 - 32.0) * 0.0005;
+                draws.push(if parameter == 0 {
+                    1.002 + offset
+                } else {
+                    5.504 + offset * 4.0
+                });
+            }
+        }
+        let output = run_svgd_comparison_impl(
+            "M0",
+            &temperature,
+            &voltage,
+            3.0e-4,
+            1.253_079_539_906_918e-4,
+            &draws,
+            2,
+            draws_per_parameter as u32,
+            64,
+            120,
+            0.08,
+            0.5,
+            7,
+            24,
+        )
+        .expect("SVGD comparison");
+        assert_eq!(output.parameter_count(), 2);
+        assert_eq!(output.particle_count(), 64);
+        assert_eq!(output.mclmc_particle_count(), 64);
+        assert_eq!(output.frame_count(), 25);
+        assert!(output.trajectory().iter().all(|value| value.is_finite()));
+        assert!(output.svgd_mean().iter().all(|value| value.is_finite()));
+        assert!(output.svgd_variance().iter().all(|value| value.is_finite()));
+        assert!(output.mclmc_mean().iter().all(|value| value.is_finite()));
+        assert!(output
+            .mclmc_variance()
+            .iter()
+            .all(|value| value.is_finite()));
+        assert!(output.w2_distance().is_finite());
+        assert!(output.w2_bootstrap_se().is_finite());
     }
 
     #[test]

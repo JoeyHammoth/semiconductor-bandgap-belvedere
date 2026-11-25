@@ -51,6 +51,7 @@ version = "0.0.0"
 dependencies = [
  "bgo-infer",
  "bgo-info",
+ "bgo-ot",
  "bgo-physics",
  "wasm-bindgen",
 ]

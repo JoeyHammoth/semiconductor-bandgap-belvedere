@@ -175,6 +175,18 @@ impl Case {
         }
     }
 
+    /// Prior scales in the sampler's latent coordinates. SVGD uses these to
+    /// standardise its particles before applying an isotropic RBF kernel.
+    pub fn prior_scales(&self) -> Vec<f64> {
+        match self.model {
+            Model::M0 => vec![0.35, 8.0],
+            Model::M1 => vec![0.35, 8.0, 1.0],
+            Model::M2 => vec![0.01, 0.01, 8.0, 150.0, 1.0],
+            Model::M3 => vec![0.01, 0.01, 8.0, 150.0, 0.15],
+            Model::M4 => vec![0.01, 0.01, 8.0, 150.0, 0.15, 1.0],
+        }
+    }
+
     fn gap_anchors(&self) -> (f64, f64) {
         let first = self.temperature_k.first().copied().unwrap_or(220.0);
         let last = self.temperature_k.last().copied().unwrap_or(383.15);

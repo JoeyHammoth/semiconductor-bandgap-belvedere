@@ -26,5 +26,6 @@ wasm-opt = [
 [dependencies]
 bgo-infer = { workspace = true }
 bgo-info = { workspace = true }
+bgo-ot = { workspace = true }
 bgo-physics = { workspace = true }
 wasm-bindgen = "0.2"

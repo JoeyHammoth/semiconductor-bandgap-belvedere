@@ -9,12 +9,16 @@ pub mod diagnostics;
 pub mod mclmc;
 pub mod model;
 pub mod nested;
+pub mod svgd;
 
 pub use diagnostics::{bulk_ess, split_rhat, Diagnostics};
 pub use mclmc::{run_mclmc, MclmcConfig, MclmcError, MclmcOutput};
 pub use model::{Case, Model, ModelError};
 pub use nested::{
     run_nested, LogLikePrior, NestedConfig, NestedError, NestedEvent, NestedOutput, NestedPoint,
+};
+pub use svgd::{
+    run_svgd, CaseTarget, GaussianTarget, SvgdConfig, SvgdError, SvgdOutput, SvgdTarget,
 };
 
 /// Crate version, surfaced in the status bar and the "Receipts" footer.

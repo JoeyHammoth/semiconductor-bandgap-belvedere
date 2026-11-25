@@ -9,6 +9,7 @@ import type {
   Request,
   Response,
   SamplerResult,
+  SvgdComparisonResult,
 } from './protocol';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
@@ -177,6 +178,58 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             value.livePositions.buffer as ArrayBuffer,
             value.priorLow.buffer as ArrayBuffer,
             value.priorHigh.buffer as ArrayBuffer,
+          ]);
+        } finally {
+          output.free();
+        }
+        break;
+      }
+      case 'svgd': {
+        const output = module.run_svgd_comparison(
+          request.model,
+          request.temperatureK,
+          request.voltageV,
+          request.currentA,
+          request.sigmaV,
+          request.mclmcDraws,
+          request.parameterCount,
+          request.drawsPerParameter,
+          request.particles,
+          request.iterations,
+          request.stepSize,
+          request.bandwidth,
+          request.seed,
+          request.traceFrames,
+        );
+        try {
+          const value: SvgdComparisonResult = {
+            parameterNames: output.parameter_names.split(',').filter(Boolean),
+            parameterCount: output.parameter_count,
+            particleCount: output.particle_count,
+            frameCount: output.frame_count,
+            iterations: output.iterations,
+            trajectory: output.trajectory,
+            particles: output.particles,
+            svgdMean: output.svgd_mean,
+            svgdVariance: output.svgd_variance,
+            mclmcMean: output.mclmc_mean,
+            mclmcVariance: output.mclmc_variance,
+            mclmcParticles: output.mclmc_particles,
+            mclmcParticleCount: output.mclmc_particle_count,
+            w2Distance: output.w2_distance,
+            w2BootstrapSe: output.w2_bootstrap_se,
+            bandwidth: output.bandwidth,
+            stepSize: output.step_size,
+            finalLogpMean: output.final_logp_mean,
+          };
+          reply({ id: request.id, ok: true, kind: 'svgd', value }, [
+            value.trajectory.buffer as ArrayBuffer,
+            value.particles.buffer as ArrayBuffer,
+            value.svgdMean.buffer as ArrayBuffer,
+            value.svgdVariance.buffer as ArrayBuffer,
+            value.mclmcMean.buffer as ArrayBuffer,
+            value.mclmcVariance.buffer as ArrayBuffer,
+            value.mclmcParticles.buffer as ArrayBuffer,
           ]);
         } finally {
           output.free();

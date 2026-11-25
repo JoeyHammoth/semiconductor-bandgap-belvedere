@@ -23,6 +23,7 @@ repository = "https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere"
 bgo-ad = { path = "crates/bgo-ad" }
 bgo-infer = { path = "crates/bgo-infer" }
 bgo-info = { path = "crates/bgo-info" }
+bgo-ot = { path = "crates/bgo-ot" }
 bgo-physics = { path = "crates/bgo-physics" }
 libm = "0.2"
 

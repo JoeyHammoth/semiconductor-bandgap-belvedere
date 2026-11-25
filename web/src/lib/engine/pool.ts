@@ -9,6 +9,8 @@ import type {
   Response,
   SamplerRequest,
   SamplerResult,
+  SvgdComparisonRequest,
+  SvgdComparisonResult,
 } from './protocol';
 
 export interface EngineSuccess {
@@ -20,7 +22,8 @@ export interface EngineSuccess {
     | DiagnosticsResult
     | PredictiveResult
     | FisherResult
-    | NestedTraceResult;
+    | NestedTraceResult
+    | SvgdComparisonResult;
 }
 
 export interface EngineFailure {
@@ -195,6 +198,10 @@ export class EnginePool {
 
   nestedEvidence(livePoints: number, seed: number, timeoutMs = 120_000) {
     return this.#send({ kind: 'nested', livePoints, seed }, timeoutMs);
+  }
+
+  svgdComparison(request: SvgdComparisonRequest, timeoutMs = 120_000) {
+    return this.#send({ kind: 'svgd', ...request }, timeoutMs);
   }
 
   /**

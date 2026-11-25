@@ -14,6 +14,7 @@ test('evidence route exposes both synthetic scenes and the S4 report', async ({ 
   await expect(page.getByRole('heading', { level: 1 })).toContainText('What the data');
   await expect(page.getByText('Synthetic cases')).toBeVisible();
   await expect(page.getByTestId('nested-trace')).toBeVisible();
+  await expect(page.getByTestId('swarm')).toBeVisible();
   await expect(page.getByTestId('sloppiness')).toBeVisible();
   await expect(page.getByText(/condition number/i).first()).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText(/Fisher spectrum, stiffest first/i)).toBeVisible();
@@ -52,6 +53,34 @@ test('S2 scrubber responds to keyboard navigation', async ({ page, browserName }
   await expect(trace.getByRole('status')).toContainText('Frame 1');
   await page.keyboard.press('End');
   await expect.poll(async () => Number(await scrub.inputValue())).toBeGreaterThan(0);
+});
+
+test('S3 runs SVGD against MCLMC and reports sliced-W2', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'one SVGD browser run is enough for CI time');
+  test.setTimeout(120_000);
+  await page.goto('evidence/');
+  const run = page.getByRole('button', { name: /run svgd/i });
+  await expect(run).toBeEnabled({ timeout: 30_000 });
+  await run.click();
+  await expect(page.getByTestId('swarm-w2')).toContainText(/sliced-W2/i, { timeout: 90_000 });
+  await expect(page.getByRole('table', { name: /S3 accessible equivalent/i })).toBeVisible();
+  await expect(page.getByText(/MCLMC reference:/i)).toBeVisible();
+});
+
+test('S3 bandwidth and step sliders respond to keyboard navigation', async ({ page }) => {
+  await page.goto('evidence/');
+  const bandwidth = page.locator('#swarm-bandwidth');
+  const step = page.locator('#swarm-step');
+  await expect(bandwidth).toBeVisible();
+  const initialBandwidth = await bandwidth.inputValue();
+  await bandwidth.focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(bandwidth).not.toHaveValue(initialBandwidth);
+
+  const initialStep = await step.inputValue();
+  await step.focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(step).not.toHaveValue(initialStep);
 });
 
 test('S4 recomputes Fisher information when the temperature range changes', async ({ page }) => {

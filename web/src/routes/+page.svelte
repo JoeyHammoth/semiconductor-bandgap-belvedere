@@ -302,10 +302,10 @@
     <section class="next" aria-labelledby="n-title">
       <h2 id="n-title">Status</h2>
       <p>
-        Phase 2 — nested-sampling evidence, Fisher sloppiness and the evidence ledger are in place.
-        The synthetic M0–M4 references, fail-closed diagnostics and MCLMC remain the foundation. The
-        SVGD swarm is the remaining Phase 2 scene. The original recordings no longer exist, so every
-        scene uses labelled simulated and report-anchored data. Full plan in
+        Phase 2 — nested-sampling evidence, Fisher sloppiness, the SVGD swarm and the evidence
+        ledger are in place. The synthetic M0–M4 references, fail-closed diagnostics and MCLMC
+        remain the foundation. The original recordings no longer exist, so every scene uses labelled
+        simulated and report-anchored data. Full plan in
         <a
           href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/docs/roadmap.md"
         >
