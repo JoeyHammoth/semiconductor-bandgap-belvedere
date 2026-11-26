@@ -1,0 +1,18 @@
+{
+  "name": "Band-Gap Observatory",
+  "short_name": "Band-Gap",
+  "description": "A browser-native instrument for interrogating a diode thermometry measurement.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#101318",
+  "theme_color": "#101318",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

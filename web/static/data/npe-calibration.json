@@ -1,0 +1,111 @@
+{
+  "model": "M0",
+  "note": "Synthetic M0 local to the report-anchored case. The original measurements do not exist (ADR 0006).",
+  "ood": {
+    "fpr": 0.01,
+    "fpr_target": 0.02,
+    "pass": true,
+    "threshold": 15.663308101834074,
+    "tpr": 1.0,
+    "tpr_target": 0.9
+  },
+  "parameter_names": [
+    "eg_ev",
+    "ln_b"
+  ],
+  "pass": true,
+  "prior_scope": "local report-anchored M0",
+  "sbc": {
+    "bins": 10,
+    "chi_square": 4.9799999999999995,
+    "p_values": [
+      0.9357164109139733,
+      0.9979429465340565
+    ],
+    "pass": true,
+    "rank_counts": [
+      [
+        103,
+        107,
+        94,
+        90,
+        103,
+        105,
+        107,
+        103,
+        93,
+        95
+      ],
+      [
+        103,
+        106,
+        95,
+        99,
+        101,
+        95,
+        105,
+        100,
+        100,
+        96
+      ]
+    ],
+    "samples_per_simulation": 100,
+    "simulations": 1000,
+    "threshold": 0.01
+  },
+  "schema_version": 1,
+  "synthetic": true,
+  "tarp": {
+    "coverage": [
+      {
+        "deviation": 0.0025000000000000022,
+        "empirical": 0.0975,
+        "nominal": 0.1
+      },
+      {
+        "deviation": 0.0010000000000000009,
+        "empirical": 0.199,
+        "nominal": 0.2
+      },
+      {
+        "deviation": 0.007500000000000007,
+        "empirical": 0.2925,
+        "nominal": 0.3
+      },
+      {
+        "deviation": 0.0005000000000000004,
+        "empirical": 0.3995,
+        "nominal": 0.4
+      },
+      {
+        "deviation": 0.0030000000000000027,
+        "empirical": 0.497,
+        "nominal": 0.5
+      },
+      {
+        "deviation": 0.006000000000000005,
+        "empirical": 0.594,
+        "nominal": 0.6
+      },
+      {
+        "deviation": 0.00649999999999995,
+        "empirical": 0.6935,
+        "nominal": 0.7
+      },
+      {
+        "deviation": 0.006500000000000061,
+        "empirical": 0.7935,
+        "nominal": 0.8
+      },
+      {
+        "deviation": 0.02100000000000002,
+        "empirical": 0.879,
+        "nominal": 0.9
+      }
+    ],
+    "max_deviation": 0.02100000000000002,
+    "pass": true,
+    "threshold": 0.03
+  },
+  "weights_sha256": "7a2ab9799a9ddcbc07586e353bc20ff09c005167eca17d3b9c065340f2aa9a00"
+}

@@ -4,11 +4,14 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+const budgetScript = fileURLToPath(new URL("./size-budget.mjs", import.meta.url));
 import { test } from "node:test";
 import { randomBytes } from "node:crypto";
 
 function run(dir) {
-  return spawnSync(process.execPath, ["scripts/size-budget.mjs", dir], {
+  return spawnSync(process.execPath, [budgetScript, dir], {
     encoding: "utf8",
   });
 }

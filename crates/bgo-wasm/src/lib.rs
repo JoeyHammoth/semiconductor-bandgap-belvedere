@@ -11,6 +11,7 @@ use bgo_infer::{
     MclmcOutput, Model, NestedConfig, SvgdConfig, SvgdTarget,
 };
 use bgo_info::{analyze_fisher, covariance_ellipse, fisher_from_jacobian};
+use bgo_nn::Flow;
 use bgo_ot::sliced_wasserstein_2;
 use wasm_bindgen::prelude::*;
 
@@ -1286,6 +1287,181 @@ pub fn run_svgd_comparison(
         trace_frames,
     )
     .map_err(|error| JsValue::from_str(&error))
+}
+
+/// Amortised M0 posterior draws from the exported conditional spline flow.
+#[wasm_bindgen]
+pub struct NpeOutput {
+    parameter_names: String,
+    parameter_count: u32,
+    sample_count: u32,
+    draws: Vec<f64>,
+    mean: Vec<f64>,
+    variance: Vec<f64>,
+    q05: Vec<f64>,
+    q50: Vec<f64>,
+    q95: Vec<f64>,
+    ood_distance: f64,
+    ood_threshold: f64,
+    ood: bool,
+    weights_sha256: String,
+}
+
+#[wasm_bindgen]
+impl NpeOutput {
+    #[wasm_bindgen(getter)]
+    pub fn parameter_names(&self) -> String {
+        self.parameter_names.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn parameter_count(&self) -> u32 {
+        self.parameter_count
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn sample_count(&self) -> u32 {
+        self.sample_count
+    }
+
+    /// Parameter-major draws: `parameter_count * sample_count` values.
+    #[wasm_bindgen(getter)]
+    pub fn draws(&self) -> Vec<f64> {
+        self.draws.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn mean(&self) -> Vec<f64> {
+        self.mean.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn variance(&self) -> Vec<f64> {
+        self.variance.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn q05(&self) -> Vec<f64> {
+        self.q05.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn q50(&self) -> Vec<f64> {
+        self.q50.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn q95(&self) -> Vec<f64> {
+        self.q95.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn ood_distance(&self) -> f64 {
+        self.ood_distance
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn ood_threshold(&self) -> f64 {
+        self.ood_threshold
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn ood(&self) -> bool {
+        self.ood
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn weights_sha256(&self) -> String {
+        self.weights_sha256.clone()
+    }
+}
+
+fn run_npe_impl(
+    manifest_json: &str,
+    weights: &[u8],
+    condition: &[f64],
+    samples: u32,
+    seed: u32,
+) -> Result<NpeOutput, String> {
+    if !(1..=20_000).contains(&samples) {
+        return Err("NPE sample count must be between 1 and 20,000".into());
+    }
+    let flow = Flow::from_json(manifest_json, weights).map_err(|error| error.to_string())?;
+    let parameter_count = flow.parameter_dim();
+    if condition.len() != flow.condition_dim() {
+        return Err("NPE condition length does not match the manifest".into());
+    }
+    let sample_count = samples as usize;
+    let sample_major = flow
+        .sample(condition, sample_count, u64::from(seed))
+        .map_err(|error| error.to_string())?;
+    let mut draws = vec![0.0; parameter_count * sample_count];
+    for sample in 0..sample_count {
+        for parameter in 0..parameter_count {
+            draws[parameter * sample_count + sample] =
+                sample_major[sample * parameter_count + parameter];
+        }
+    }
+
+    let mut mean = Vec::with_capacity(parameter_count);
+    let mut variance = Vec::with_capacity(parameter_count);
+    let mut q05 = Vec::with_capacity(parameter_count);
+    let mut q50 = Vec::with_capacity(parameter_count);
+    let mut q95 = Vec::with_capacity(parameter_count);
+    for parameter in 0..parameter_count {
+        let values = draws[parameter * sample_count..(parameter + 1) * sample_count].to_vec();
+        let average = values.iter().sum::<f64>() / sample_count as f64;
+        let spread = values
+            .iter()
+            .map(|value| {
+                let difference = value - average;
+                difference * difference
+            })
+            .sum::<f64>()
+            / sample_count as f64;
+        let mut sorted = values;
+        sorted.sort_by(f64::total_cmp);
+        mean.push(average);
+        variance.push(spread);
+        q05.push(quantile(&sorted, 0.05));
+        q50.push(quantile(&sorted, 0.5));
+        q95.push(quantile(&sorted, 0.95));
+    }
+
+    let ood_distance = flow
+        .ood_distance(condition)
+        .map_err(|error| error.to_string())?;
+    let ood_threshold = flow.ood_threshold();
+    Ok(NpeOutput {
+        parameter_names: flow.parameter_names().join(","),
+        parameter_count: parameter_count as u32,
+        sample_count: samples,
+        draws,
+        mean,
+        variance,
+        q05,
+        q50,
+        q95,
+        ood_distance,
+        ood_threshold,
+        ood: ood_distance > ood_threshold,
+        weights_sha256: flow.weights_sha256().to_owned(),
+    })
+}
+
+/// Run the frozen M0 conditional spline flow. Weights and manifest are fetched
+/// lazily by the app and passed as bytes, so the core WASM stays architecture
+/// only.
+#[wasm_bindgen]
+pub fn run_npe(
+    manifest_json: &str,
+    weights: &[u8],
+    condition: &[f64],
+    samples: u32,
+    seed: u32,
+) -> Result<NpeOutput, JsValue> {
+    run_npe_impl(manifest_json, weights, condition, samples, seed)
+        .map_err(|error| JsValue::from_str(&error))
 }
 
 #[cfg(test)]

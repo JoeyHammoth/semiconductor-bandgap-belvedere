@@ -1,6 +1,6 @@
 [project]
 name = "bgo-train"
-version = "0.0.0"
+version = "0.1.0"
 description = "Offline simulator, reference posteriors and neural-posterior training for the Band-Gap Observatory"
 requires-python = ">=3.11,<3.14"
 readme = "README.md"

@@ -3,6 +3,8 @@ import type {
   DiagnosticsResult,
   FisherResult,
   NestedTraceResult,
+  NpeRequest,
+  NpeResult,
   PredictiveRequest,
   PredictiveResult,
   Request,
@@ -23,6 +25,7 @@ export interface EngineSuccess {
     | PredictiveResult
     | FisherResult
     | NestedTraceResult
+    | NpeResult
     | SvgdComparisonResult;
 }
 
@@ -200,6 +203,10 @@ export class EnginePool {
     return this.#send({ kind: 'nested', livePoints, seed }, timeoutMs);
   }
 
+  npe(request: NpeRequest, timeoutMs = 10_000) {
+    return this.#send({ kind: 'npe', ...request }, timeoutMs);
+  }
+
   svgdComparison(request: SvgdComparisonRequest, timeoutMs = 120_000) {
     return this.#send({ kind: 'svgd', ...request }, timeoutMs);
   }
@@ -236,10 +243,15 @@ export class EnginePool {
     for (const result of results) {
       if (!result.ok) return result;
       const value = result.value;
-      if (typeof value !== 'object' || value === null || !('draws' in value)) {
+      if (
+        typeof value !== 'object' ||
+        value === null ||
+        !('draws' in value) ||
+        !('drawsPerParameter' in value)
+      ) {
         return { ok: false, error: 'sampler worker returned no draws' };
       }
-      values.push(value);
+      values.push(value as SamplerResult);
     }
 
     const first = values[0];

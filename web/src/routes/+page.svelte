@@ -109,6 +109,8 @@
       <a href="infer/">Infer</a>
       <a href="evidence/">Evidence</a>
       <a href="ledger/">Ledger</a>
+      <a href="npe/">Instant</a>
+      <a href="story/">Story</a>
       <a href="#honesty">Honesty</a>
       <a href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere#readme">Docs</a>
       <button class="theme" type="button" onclick={toggleTheme} aria-pressed={daylight}>
@@ -315,7 +317,7 @@
     </section>
   </main>
 
-  <StatusBar {backend} {core} phase="Phase 2" {commit} />
+  <StatusBar {backend} {core} phase="Phase 3" {commit} />
 </div>
 
 <style>

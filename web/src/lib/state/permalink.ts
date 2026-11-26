@@ -5,6 +5,8 @@ export interface ViewState {
   dataset: string | null;
   temperature: number;
   seed: number;
+  scene?: string;
+  caseId?: string;
 }
 
 export const DEFAULT_STATE: ViewState = {
@@ -14,7 +16,8 @@ export const DEFAULT_STATE: ViewState = {
   seed: 1,
 };
 
-const VERSION = 1;
+const VERSION = 2;
+const LEGACY_VERSION = 1;
 
 function toBase64Url(bytes: Uint8Array): string {
   let binary = '';
@@ -23,7 +26,10 @@ function toBase64Url(bytes: Uint8Array): string {
 }
 
 function fromBase64Url(value: string): Uint8Array {
-  const padded = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '=');
+  const padded = value
+    .replace(/-/g, '+')
+    .replace(/_/g, '/')
+    .padEnd(Math.ceil(value.length / 4) * 4, '=');
   const binary = atob(padded);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
@@ -37,17 +43,23 @@ export function encodeState(state: ViewState): string {
 
 export function decodeState(encoded: string): ViewState {
   try {
-    const payload = JSON.parse(new TextDecoder().decode(fromBase64Url(encoded))) as Partial<ViewState> & {
+    const payload = JSON.parse(
+      new TextDecoder().decode(fromBase64Url(encoded)),
+    ) as Partial<ViewState> & {
       v?: number;
     };
-    if (payload.v !== VERSION) return { ...DEFAULT_STATE };
-    return {
+    if (payload.v !== VERSION && payload.v !== LEGACY_VERSION) return { ...DEFAULT_STATE };
+    const state: ViewState = {
       model: typeof payload.model === 'string' ? payload.model : DEFAULT_STATE.model,
-      dataset: typeof payload.dataset === 'string' || payload.dataset === null ? payload.dataset : null,
+      dataset:
+        typeof payload.dataset === 'string' || payload.dataset === null ? payload.dataset : null,
       temperature:
         typeof payload.temperature === 'number' ? payload.temperature : DEFAULT_STATE.temperature,
       seed: typeof payload.seed === 'number' ? payload.seed : DEFAULT_STATE.seed,
     };
+    if (typeof payload.scene === 'string') state.scene = payload.scene;
+    if (typeof payload.caseId === 'string') state.caseId = payload.caseId;
+    return state;
   } catch {
     return { ...DEFAULT_STATE };
   }

@@ -48,6 +48,8 @@ Table 1 intercept reproduction is not pending: it is **unavailable**. No authent
 
 Phase 1 validation is simulation-only. The original recordings were lost (ADR 0006), so report-anchored synthetic cases are labelled and are not a real-data comparison.
 
+The S5 NPE is a **local, report-anchored M0 amortised model**, not a calibrated surrogate for the full broad M0 prior. Its committed SBC/TARP/OOD report only certifies the local prior box `E_g ∈ [0.90, 1.10] eV`, `ln B ∈ [4.5, 6.5]`; outside it the OOD gate must reject the input. This limitation is visible on the page and is not hidden by the calibration badge.
+
 Nested sampling replaces a live point with a draw from the **uniform prior restricted to the likelihood threshold**, not from the likelihood-weighted posterior. The fixed-threshold tests check that this draw preserves uniform constrained means; the integration test checks the closed-form 2D Gaussian, the committed dynesty run and replicate scatter together.
 
 Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff: `--compare` accepts ordinary MCMC scatter when means and quantiles shift by at most 0.05 sd, standard deviations by at most 10%, and correlations by at most 0.02. Engine or config changes, failed diagnostics or larger shifts still fail the scheduled workflow. This does not relax the sampler-parity acceptance criteria.
@@ -67,9 +69,10 @@ Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff
 | Sinkhorn matches exact 1D transport | analytic 1D fixture | ≤ 1e-6 after convergence | pending |
 | Sliced-W2 noise floor is quantified | `cargo test -p bgo-ot`; Playwright S3 | bootstrap over random projections; reported with the point estimate | verified (unit + Chromium e2e) |
 | SVGD converges on a Gaussian | `cargo test -p bgo-infer svgd` | mean within 0.05 σ; variance bias reported separately | verified (unit) |
-| NPE matches PyTorch golden vectors | exported vectors | ≤ 1e-5 relative on log-prob | pending |
-| SBC is uniform | 1000 simulations | chi-square p > 0.01 | pending |
-| TARP coverage is nominal | α grid | max deviation ≤ 0.03 | pending |
+| NPE matches the JAX reference and Rust golden vectors | `cargo test -p bgo-nn`; `python -m bgo_train.npe --check` | ≤ 1e-5 relative on log-prob | verified (unit + committed artifact) |
+| SBC is uniform for the local M0 flow | 1000 synthetic simulations, 100 draws each; `web/static/data/npe-calibration.json` | chi-square p > 0.01 (observed 0.936 and 0.998) | verified (committed artifact) |
+| TARP coverage is nominal for the local M0 flow | α grid 0.1–0.9 | max deviation ≤ 0.03 (observed 0.021) | verified (committed artifact) |
+| OOD detector flags a shifted design | 300 shifted simulations; committed calibration report | TPR ≥ 0.9, FPR ≤ 0.02 (observed 1.00, 0.01) | verified (committed artifact) |
 | Conformal coverage is nominal | held-out simulated runs | within 2% of nominal | pending |
 
 ## 6. State space and band structure
@@ -105,6 +108,10 @@ Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff
 | S2 scrubber and S4 sliders are keyboard operable | Playwright `/evidence/`; Home/End and arrow keys | frame, temperature bounds and Fisher summary update | verified (CI e2e; Chromium, Firefox, WebKit) |
 | S3 compares deterministic SVGD with MCLMC | Playwright `/evidence/`; S3 run and keyboard sliders | finite sliced-W2 with bootstrap SE, variance-ratio table, accessible equivalent | verified (unit + Chromium e2e) |
 | `/ledger` has no serious axe violations | Playwright + axe-core on `/ledger/` | zero serious/critical | verified (Chromium e2e + a11y) |
+| `/npe` runs the frozen local M0 flow and labels OOD | Playwright Chromium `/npe/`; `data-testid="npe"`, `npe-ood`, accessible table | draws and passing calibration report visible; OOD state explicit | verified (Chromium e2e) |
+| `/npe` has no serious axe violations | Playwright + axe-core on `/npe/` | zero serious/critical | verified (Chromium e2e + a11y) |
+| Guided story is keyboard operable | Playwright `/story/`; ArrowLeft/ArrowRight | heading advances and returns | verified (Chromium e2e) |
+| PWA manifest and service worker are served | Playwright `/`; manifest link and `navigator.serviceWorker`; production build | manifest 200, worker registered under the configured base path | verified (Chromium e2e) |
 
 ## 8. How to run
 
