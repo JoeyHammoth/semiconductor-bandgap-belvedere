@@ -289,12 +289,18 @@ def _adam(
         correction1 = 1.0 - beta1**step
         correction2 = 1.0 - beta2**step
         learning_rate = config.learning_rate * (0.2 + 0.8 * (1.0 - step / config.steps))
-        params = jax.tree_util.tree_map(
-            lambda p, m, v: p - learning_rate * (m / correction1) / (jnp.sqrt(v / correction2) + epsilon),
-            params,
-            first,
-            second,
-        )
+
+        def update(
+            p: jax.Array,
+            m: jax.Array,
+            v: jax.Array,
+            lr: float = learning_rate,
+            c1: float = correction1,
+            c2: float = correction2,
+        ) -> jax.Array:
+            return p - lr * (m / c1) / (jnp.sqrt(v / c2) + epsilon)
+
+        params = jax.tree_util.tree_map(update, params, first, second)
         if step % 500 == 0 or step == config.steps:
             final_loss = float(loss_fn_jit(params, conditions, targets))
             print(f"step {step:4d}/{config.steps}: validation loss {final_loss:.6f}")
@@ -499,7 +505,7 @@ def train(config: NpeConfig) -> dict[str, Any]:
     z_values: list[list[float]] = []
     log_probs: list[float] = []
     for condition, target in zip(golden_conditions, golden_x):
-        z, log_det = _forward(params, jnp.asarray(condition), jnp.asarray(target), config)
+        z, _log_det = _forward(params, jnp.asarray(condition), jnp.asarray(target), config)
         z_values.append(np.asarray(z, dtype=np.float64).tolist())
         log_probs.append(float(_log_prob(params, jnp.asarray(condition), jnp.asarray(target), config)))
     sample_z = np.array(

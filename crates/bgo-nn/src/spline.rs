@@ -4,6 +4,8 @@
 //! transform is the identity outside `[-bound, bound]`; the log-determinant is
 //! therefore zero there. The inverse is solved analytically per bin.
 
+type SplineParameters = (Vec<f64>, Vec<f64>, Vec<f64>);
+
 #[derive(Debug, Clone)]
 pub struct Spline {
     pub bins: usize,
@@ -21,7 +23,7 @@ impl Spline {
         Ok(Self { bins, bound })
     }
 
-    fn parameters(&self, raw: &[f64]) -> Result<(Vec<f64>, Vec<f64>, Vec<f64>), String> {
+    fn parameters(&self, raw: &[f64]) -> Result<SplineParameters, String> {
         if raw.len() != 3 * self.bins - 1 {
             return Err(format!(
                 "spline expects {} parameters, got {}",

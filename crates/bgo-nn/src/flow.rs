@@ -543,8 +543,8 @@ fn solve3(matrix: [[f64; 3]; 3], rhs: [f64; 3]) -> Result<[f64; 3]> {
         }
         augmented.swap(pivot, best);
         let divisor = augmented[pivot][pivot];
-        for column in pivot..4 {
-            augmented[pivot][column] /= divisor;
+        for value in augmented[pivot].iter_mut().skip(pivot) {
+            *value /= divisor;
         }
         for row in 0..3 {
             if row == pivot {
