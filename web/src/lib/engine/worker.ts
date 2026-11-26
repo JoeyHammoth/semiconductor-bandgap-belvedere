@@ -5,6 +5,7 @@ import type {
   DiagnosticsResult,
   FisherResult,
   NestedTraceResult,
+  NpeResult,
   PredictiveResult,
   Request,
   Response,
@@ -178,6 +179,43 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             value.livePositions.buffer as ArrayBuffer,
             value.priorLow.buffer as ArrayBuffer,
             value.priorHigh.buffer as ArrayBuffer,
+          ]);
+        } finally {
+          output.free();
+        }
+        break;
+      }
+      case 'npe': {
+        const output = module.run_npe(
+          request.manifestJson,
+          request.weights,
+          request.condition,
+          request.samples,
+          request.seed,
+        );
+        try {
+          const value: NpeResult = {
+            parameterNames: output.parameter_names.split(',').filter(Boolean),
+            parameterCount: output.parameter_count,
+            sampleCount: output.sample_count,
+            draws: output.draws,
+            mean: output.mean,
+            variance: output.variance,
+            q05: output.q05,
+            q50: output.q50,
+            q95: output.q95,
+            oodDistance: output.ood_distance,
+            oodThreshold: output.ood_threshold,
+            ood: output.ood,
+            weightsSha256: output.weights_sha256,
+          };
+          reply({ id: request.id, ok: true, kind: 'npe', value }, [
+            value.draws.buffer as ArrayBuffer,
+            value.mean.buffer as ArrayBuffer,
+            value.variance.buffer as ArrayBuffer,
+            value.q05.buffer as ArrayBuffer,
+            value.q50.buffer as ArrayBuffer,
+            value.q95.buffer as ArrayBuffer,
           ]);
         } finally {
           output.free();

@@ -7,6 +7,17 @@ describe('permalink state', () => {
     expect(decodeState(encodeState(state))).toEqual(state);
   });
 
+  it('round-trips scene and case fields', () => {
+    const state = { ...DEFAULT_STATE, scene: 'npe', caseId: 'm0-report-si' };
+    expect(decodeState(encodeState(state))).toEqual(state);
+  });
+
+  it('accepts a legacy version-1 payload', () => {
+    const raw = JSON.stringify({ v: 1, model: 'M1', dataset: null, temperature: 280, seed: 3 });
+    const encoded = btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    expect(decodeState(encoded)).toEqual({ model: 'M1', dataset: null, temperature: 280, seed: 3 });
+  });
+
   it('produces a url-safe string', () => {
     expect(encodeState(DEFAULT_STATE)).toMatch(/^[A-Za-z0-9_-]+$/);
   });

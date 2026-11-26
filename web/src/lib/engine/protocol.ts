@@ -126,6 +126,34 @@ export interface NestedTraceResult {
   priorHigh: Float64Array;
 }
 
+export interface NpeRequest {
+  /** JSON architecture manifest for the frozen synthetic M0 flow. */
+  manifestJson: string;
+  /** Little-endian float64 weights, fetched lazily. */
+  weights: Uint8Array;
+  /** Raw voltage sweep, 41 points for the committed M0 case. */
+  condition: Float64Array;
+  samples: number;
+  seed: number;
+}
+
+export interface NpeResult {
+  parameterNames: string[];
+  parameterCount: number;
+  sampleCount: number;
+  /** Parameter-major draws. */
+  draws: Float64Array;
+  mean: Float64Array;
+  variance: Float64Array;
+  q05: Float64Array;
+  q50: Float64Array;
+  q95: Float64Array;
+  oodDistance: number;
+  oodThreshold: number;
+  ood: boolean;
+  weightsSha256: string;
+}
+
 export interface SvgdComparisonRequest {
   model: string;
   temperatureK: Float64Array;
@@ -195,6 +223,7 @@ export type Request =
       reported: Float64Array;
     }
   | { id: number; kind: 'nested'; livePoints: number; seed: number }
+  | ({ id: number; kind: 'npe' } & NpeRequest)
   | ({ id: number; kind: 'svgd' } & SvgdComparisonRequest);
 
 export type Response =
@@ -206,6 +235,7 @@ export type Response =
   | { id: number; ok: true; kind: 'diagnostics'; value: DiagnosticsResult }
   | { id: number; ok: true; kind: 'fisher'; value: FisherResult }
   | { id: number; ok: true; kind: 'nested'; value: NestedTraceResult }
+  | { id: number; ok: true; kind: 'npe'; value: NpeResult }
   | { id: number; ok: true; kind: 'svgd'; value: SvgdComparisonResult }
   | { id: number; ok: false; error: string };
 
@@ -286,6 +316,23 @@ export interface WasmNestedTraceOutput {
   free: () => void;
 }
 
+export interface WasmNpeOutput {
+  readonly parameter_names: string;
+  readonly parameter_count: number;
+  readonly sample_count: number;
+  readonly draws: Float64Array;
+  readonly mean: Float64Array;
+  readonly variance: Float64Array;
+  readonly q05: Float64Array;
+  readonly q50: Float64Array;
+  readonly q95: Float64Array;
+  readonly ood_distance: number;
+  readonly ood_threshold: number;
+  readonly ood: boolean;
+  readonly weights_sha256: string;
+  free: () => void;
+}
+
 export interface WasmSvgdOutput {
   readonly parameter_names: string;
   readonly parameter_count: number;
@@ -363,6 +410,13 @@ export interface CoreModule {
     reported: Float64Array,
   ) => WasmFisherOutput;
   run_nested_gaussian: (livePoints: number, seed: number) => WasmNestedTraceOutput;
+  run_npe: (
+    manifestJson: string,
+    weights: Uint8Array,
+    condition: Float64Array,
+    samples: number,
+    seed: number,
+  ) => WasmNpeOutput;
   run_svgd_comparison: (
     model: string,
     temperatureK: Float64Array,
