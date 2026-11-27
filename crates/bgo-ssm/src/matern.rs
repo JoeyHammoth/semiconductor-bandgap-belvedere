@@ -13,8 +13,13 @@
 //! process noise is that transition integrated over the step, and the filter is
 //! a two-state Kalman filter with an RTS smoother.
 //!
-//! The hyperparameters are fixed, like the RBF diagnostic in `ukf`: this is a
-//! stated prior on the discrepancy, not a learned or calibrated one.
+//! [`matern_discrepancy`] runs the filter at fixed hyperparameters.
+//! [`matern_posterior`] puts a Jeffreys (log-uniform) hyperprior on the length
+//! scale and the signal scale, evaluates the marginal likelihood on a grid, and
+//! reports the moment-matched mixture of the per-grid smoothed states. That is a
+//! two-level (hierarchical) model with a grid posterior over the hyperparameters;
+//! it is not an MCMC over them, and the reported mixture is not a posterior over
+//! the discrepancy conditional on a single fitted scale.
 
 type Vec2 = [f64; 2];
 type Mat2 = [[f64; 2]; 2];
@@ -41,6 +46,34 @@ const GAUSS_WEIGHTS: [f64; 8] = [
     0.222_381_034_453_374_5,
     0.101_228_536_290_376_3,
 ];
+
+/// Length scales searched by the hyperprior, in seconds. The grid brackets the
+/// 420 s slowest chain constant and the 180 s fixed scale used before.
+pub const LENGTH_SCALES_S: [f64; 8] = [60.0, 90.0, 120.0, 180.0, 240.0, 360.0, 480.0, 720.0];
+/// Signal standard deviations searched by the hyperprior, in kelvin. The floor is
+/// a fifth of the default sensor noise, so "no smooth discrepancy" is reachable.
+pub const SIGNAL_SCALES_K: [f64; 6] = [0.005, 0.01, 0.02, 0.04, 0.08, 0.16];
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MaternPosterior {
+    /// Moment-matched mixture of the per-grid smoothed discrepancy means.
+    pub mean_k: Vec<f64>,
+    /// Standard deviation of the mixture, including the spread between grids.
+    pub sd_k: Vec<f64>,
+    pub rms_k: f64,
+    /// Posterior mean of the length scale over the grid, in seconds.
+    pub length_scale_s: f64,
+    /// Posterior mean of the signal standard deviation over the grid, in kelvin.
+    pub signal_sd_k: f64,
+    /// Fraction of residuals inside the predictive 95% band `mean ± 1.96·sd`
+    /// with the observation noise added in quadrature.
+    pub coverage_95: f64,
+    /// Log marginal likelihood summed over the grid, up to the grid constant.
+    pub log_evidence: f64,
+    /// True when a posterior mean sits at the edge of its grid, so the fitted
+    /// value is a bound rather than an interior maximum.
+    pub at_grid_edge: bool,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct MaternDiscrepancy {
@@ -180,6 +213,101 @@ pub fn matern_discrepancy(
         length_scale_s,
         signal_sd_k,
     })
+}
+
+/// Hierarchical fit: a grid posterior over the length and signal scales, then
+/// the moment-matched mixture of the smoothed discrepancy states.
+pub fn matern_posterior(
+    time_s: &[f64],
+    residual_k: &[f64],
+    noise_k: f64,
+) -> Result<MaternPosterior, String> {
+    let count = time_s.len();
+    if count == 0 || residual_k.len() != count {
+        return Err("Matérn discrepancy is empty or inconsistent".into());
+    }
+
+    let mut scores = Vec::with_capacity(LENGTH_SCALES_S.len() * SIGNAL_SCALES_K.len());
+    let mut fits = Vec::with_capacity(scores.capacity());
+    for length_scale_s in LENGTH_SCALES_S {
+        for signal_sd_k in SIGNAL_SCALES_K {
+            let fit = matern_discrepancy(time_s, residual_k, length_scale_s, signal_sd_k, noise_k)?;
+            // Jeffreys hyperprior: equal mass per decade on both scales.
+            scores.push(fit.log_likelihood - length_scale_s.ln() - signal_sd_k.ln());
+            fits.push((length_scale_s, signal_sd_k, fit));
+        }
+    }
+    let best = scores.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    if !best.is_finite() {
+        return Err("Matérn grid produced no finite likelihood".into());
+    }
+    let weights = scores
+        .iter()
+        .map(|score| (score - best).exp())
+        .collect::<Vec<_>>();
+    let total = weights.iter().sum::<f64>();
+    if !total.is_finite() || total <= 0.0 {
+        return Err("Matérn grid posterior is degenerate".into());
+    }
+
+    let mut mean_k = vec![0.0; count];
+    for (weight, (_, _, fit)) in weights.iter().zip(&fits) {
+        let share = weight / total;
+        for (value, part) in mean_k.iter_mut().zip(&fit.mean_k) {
+            *value += share * part;
+        }
+    }
+    let mut variance_k = vec![0.0; count];
+    for (weight, (_, _, fit)) in weights.iter().zip(&fits) {
+        let share = weight / total;
+        for index in 0..count {
+            let spread = fit.mean_k[index] - mean_k[index];
+            variance_k[index] += share * (fit.sd_k[index] * fit.sd_k[index] + spread * spread);
+        }
+    }
+    let sd_k = variance_k
+        .iter()
+        .map(|value| value.max(0.0).sqrt())
+        .collect::<Vec<_>>();
+    let rms_k = (mean_k.iter().map(|value| value * value).sum::<f64>() / count as f64).sqrt();
+
+    let mut length_scale_s = 0.0;
+    let mut signal_sd_k = 0.0;
+    for (weight, (length, signal, _)) in weights.iter().zip(&fits) {
+        let share = weight / total;
+        length_scale_s += share * length;
+        signal_sd_k += share * signal;
+    }
+
+    let noise_variance = noise_k * noise_k;
+    let covered = residual_k
+        .iter()
+        .zip(&mean_k)
+        .zip(&sd_k)
+        .filter(|((residual, mean), sd)| {
+            (**residual - **mean).abs() <= 1.96 * (**sd * **sd + noise_variance).sqrt()
+        })
+        .count();
+
+    Ok(MaternPosterior {
+        mean_k,
+        sd_k,
+        rms_k,
+        length_scale_s,
+        signal_sd_k,
+        coverage_95: covered as f64 / count as f64,
+        log_evidence: best + total.ln(),
+        at_grid_edge: at_edge(length_scale_s, LENGTH_SCALES_S)
+            || at_edge(signal_sd_k, SIGNAL_SCALES_K),
+    })
+}
+
+fn at_edge(value: f64, grid: impl AsRef<[f64]>) -> bool {
+    let grid = grid.as_ref();
+    let (Some(first), Some(last)) = (grid.first(), grid.last()) else {
+        return false;
+    };
+    value <= *first * 1.05 || value >= *last * 0.95
 }
 
 /// Stationary covariance of the SDE, `diag(σ², λ²σ²)`.
@@ -349,6 +477,65 @@ mod tests {
             .sd_k
             .iter()
             .all(|value| value.is_finite() && *value >= 0.0));
+    }
+
+    #[test]
+    fn posterior_fits_and_covers_a_smooth_component() {
+        let count = 181;
+        let time = (0..count)
+            .map(|index| index as f64 * 10.0)
+            .collect::<Vec<_>>();
+        let truth = time
+            .iter()
+            .map(|value| 0.4 * (2.0 * PI * value / 500.0).sin())
+            .collect::<Vec<_>>();
+        let observed = truth
+            .iter()
+            .enumerate()
+            .map(|(index, value)| value + 0.02 * ((index as f64) * 2.399_963).sin())
+            .collect::<Vec<_>>();
+        let posterior = matern_posterior(&time, &observed, 0.02).expect("Matérn posterior");
+        assert!(
+            posterior.signal_sd_k > SIGNAL_SCALES_K[0] * 1.5,
+            "signal scale {} collapsed to the grid floor",
+            posterior.signal_sd_k
+        );
+        assert!(
+            posterior.coverage_95 > 0.85,
+            "coverage {}",
+            posterior.coverage_95
+        );
+        let rmse = (posterior
+            .mean_k
+            .iter()
+            .zip(&truth)
+            .map(|(value, expected)| (value - expected).powi(2))
+            .sum::<f64>()
+            / count as f64)
+            .sqrt();
+        assert!(rmse < 0.08, "smoothed RMSE {rmse} K");
+    }
+
+    #[test]
+    fn posterior_is_calibrated_on_a_white_residual() {
+        let count = 181;
+        let time = (0..count)
+            .map(|index| index as f64 * 10.0)
+            .collect::<Vec<_>>();
+        let residual = (0..count)
+            .map(|index| 0.04 * ((index as f64) * 1.7).sin())
+            .collect::<Vec<_>>();
+        let posterior = matern_posterior(&time, &residual, 0.04).expect("Matérn posterior");
+        assert!(
+            posterior.coverage_95 > 0.90,
+            "coverage {}",
+            posterior.coverage_95
+        );
+        assert!(
+            posterior.rms_k < 0.02,
+            "white residual produced a {0} K smooth component",
+            posterior.rms_k
+        );
     }
 
     #[test]

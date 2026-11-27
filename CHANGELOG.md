@@ -10,6 +10,12 @@
 - S6 Kalman marginal likelihood and Hankel-DMDc time constants, with the fit residual and the modal error against the chain's configured constants.
 - Three-pulse heater schedule shared by the forward twin, the UKF and DMDc; the slow and middle modal errors fall from 12–15% to 1–3%.
 - S6 Matérn-3/2 latent discrepancy: a two-state linear SDE with exact discretisation, Kalman filter and RTS smoother, replacing the "future work" note for a state-space GP.
+- Jeffreys hyperprior over the Matérn length and signal scales, fitted on an 8 × 6 grid with a moment-matched mixture and a reported 95% predictive coverage (95.6% on the default run).
+- S6 residual strip plotting the post-smoother residual, the smoothed discrepancy and its 1σ band on a magnified axis.
+
+### Changed
+
+- DMDc keeps ordinary least squares: two-stage and total least squares were measured against it and both made the modal estimate worse; a new unit test pins the noise-free recovery.
 - Offline-navigation Playwright coverage for the PWA service worker.
 
 ### Fixed

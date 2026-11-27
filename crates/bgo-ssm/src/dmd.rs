@@ -7,6 +7,13 @@
 //! This module fits the regression with the known heater input, then turns the
 //! discrete eigenvalues into damping time constants and angular frequencies.
 //!
+//! The fit is ordinary least squares. Measurement noise biases it — the noise
+//! sits on both sides of the regression — and the fastest pole is the one that
+//! suffers. Two-stage least squares with lagged observations as instruments and
+//! total least squares on the augmented system were both tried and both made the
+//! estimate worse at this sample size and conditioning, so neither ships; see
+//! [ADR 0012](../../../docs/adr/0012-dmdc-noise-sensitivity-and-matern-hyperprior.md).
+//!
 //! The estimate is a diagnostic, not a tuned model: it uses the noisy synthetic
 //! observation, a fixed embedding depth of four (matching the three-state
 //! chain) and no model-selection search. The identification trace is driven by
@@ -147,7 +154,14 @@ fn fit_modes(
         .fold(0.0_f64, f64::max);
 
     Ok(ThermalModes {
-        relative_residual: relative_residual(config, order, control_lags, &solution, &centred),
+        relative_residual: relative_residual(
+            config,
+            order,
+            control_lags,
+            start,
+            &solution,
+            &centred,
+        ),
         time_constants_s,
         frequencies_rad_s,
         true_time_constants_s,
@@ -168,12 +182,12 @@ fn relative_residual(
     config: &ThermalConfig,
     order: usize,
     control_lags: usize,
+    start: usize,
     solution: &[f64],
     observed: &[f64],
 ) -> f64 {
     let mut residual_energy = 0.0;
     let mut signal_energy = 0.0;
-    let start = order.max(control_lags) - 1;
     for index in start..(observed.len() - 1) {
         let mut prediction = solution[order + control_lags];
         for lag in 0..order {
@@ -191,7 +205,6 @@ fn relative_residual(
     }
     (residual_energy / signal_energy).sqrt()
 }
-
 /// Least squares by Householder QR. The delay embedding is strongly collinear,
 /// so normal equations would square an already large condition number.
 fn solve_least_squares(
@@ -388,6 +401,26 @@ mod tests {
             modes.relative_residual < 0.05,
             "relative residual {}",
             modes.relative_residual
+        );
+    }
+
+    #[test]
+    fn recovers_the_chain_exactly_without_measurement_noise() {
+        // The residual error of the noisy estimate is the observation noise, not
+        // the fit: on a noiseless trace the same regression returns the
+        // configured constants. This is what rules out a structural bias.
+        let config = ThermalConfig {
+            sensor_noise_k: 0.0,
+            ..ThermalConfig::default()
+        };
+        let run = simulate_thermal(&config).expect("thermal trace");
+        let modes =
+            estimate_thermal_modes(&config, &run.time_s, &run.observed_k).expect("thermal modes");
+        assert!(
+            modes.max_relative_error < 1.0e-6,
+            "modes {:?} vs true {:?}",
+            modes.time_constants_s,
+            modes.true_time_constants_s
         );
     }
 

@@ -1476,12 +1476,17 @@ pub struct ThermalTwinOutput {
     observed_k: Vec<f64>,
     ukf_junction_k: Vec<f64>,
     rts_junction_k: Vec<f64>,
+    rts_sensor_k: Vec<f64>,
     rts_sd_k: Vec<f64>,
     gp_mean_k: Vec<f64>,
     gp_sd_k: Vec<f64>,
     matern_mean_k: Vec<f64>,
     matern_sd_k: Vec<f64>,
     matern_rms_k: f64,
+    matern_length_scale_s: f64,
+    matern_signal_sd_k: f64,
+    matern_coverage_95: f64,
+    matern_at_grid_edge: bool,
     junction_rmse_k: f64,
     sensor_rmse_k: f64,
     gp_rms_k: f64,
@@ -1536,6 +1541,11 @@ impl ThermalTwinOutput {
     }
 
     #[wasm_bindgen(getter)]
+    pub fn rts_sensor_k(&self) -> Vec<f64> {
+        self.rts_sensor_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
     pub fn rts_sd_k(&self) -> Vec<f64> {
         self.rts_sd_k.clone()
     }
@@ -1563,6 +1573,26 @@ impl ThermalTwinOutput {
     #[wasm_bindgen(getter)]
     pub fn matern_rms_k(&self) -> f64 {
         self.matern_rms_k
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn matern_length_scale_s(&self) -> f64 {
+        self.matern_length_scale_s
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn matern_signal_sd_k(&self) -> f64 {
+        self.matern_signal_sd_k
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn matern_coverage_95(&self) -> f64 {
+        self.matern_coverage_95
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn matern_at_grid_edge(&self) -> bool {
+        self.matern_at_grid_edge
     }
 
     #[wasm_bindgen(getter)]
@@ -1653,12 +1683,17 @@ fn run_thermal_twin_impl(seed: u32) -> Result<ThermalTwinOutput, String> {
         observed_k: run.observed_k,
         ukf_junction_k: estimate.filtered_junction_k,
         rts_junction_k: estimate.smoothed_junction_k,
+        rts_sensor_k: estimate.smoothed_sensor_k,
         rts_sd_k: estimate.smoothed_junction_sd_k,
         gp_mean_k: estimate.gp_mean_k,
         gp_sd_k: estimate.gp_sd_k,
         matern_mean_k: estimate.matern_mean_k,
         matern_sd_k: estimate.matern_sd_k,
         matern_rms_k: estimate.matern_rms_k,
+        matern_length_scale_s: estimate.matern_length_scale_s,
+        matern_signal_sd_k: estimate.matern_signal_sd_k,
+        matern_coverage_95: estimate.matern_coverage_95,
+        matern_at_grid_edge: estimate.matern_at_grid_edge,
         junction_rmse_k: estimate.junction_rmse_k,
         sensor_rmse_k: estimate.sensor_rmse_k,
         gp_rms_k: estimate.gp_rms_k,
@@ -1841,7 +1876,11 @@ mod tests {
         assert_eq!(output.gp_sd_k().len(), 181);
         assert_eq!(output.matern_mean_k().len(), 181);
         assert_eq!(output.matern_sd_k().len(), 181);
+        assert_eq!(output.rts_sensor_k().len(), 181);
         assert!(output.matern_rms_k().is_finite() && output.matern_rms_k() >= 0.0);
+        assert!(output.matern_length_scale_s() > 0.0);
+        assert!(output.matern_signal_sd_k() > 0.0);
+        assert!((0.0..=1.0).contains(&output.matern_coverage_95()));
         assert!(output.junction_rmse_k() < 0.1);
         assert!(output.gp_rms_k().is_finite());
         assert!(output.kalman_log_likelihood().is_finite());

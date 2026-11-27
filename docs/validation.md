@@ -122,8 +122,11 @@ Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff
 | Hankel-DMDc recovers the chain's damping constants | `cargo test -p bgo-ssm dmd::tests::recovers_the_chain_time_constants` | three distinct positive modes, maximum relative error ≤ 18% of the configured constants (observed 15.5%), fit residual ≤ 5% (observed 0.96%) | verified (unit) |
 | Matérn-3/2 SDE discretisation is exact | `cargo test -p bgo-ssm matern::tests::discretisation_keeps_the_stationary_covariance` | stationary covariance is a fixed point to ≤ 1e-12, zero-lag autocovariance equals `σ²` | verified (unit) |
 | Matérn-3/2 latent discrepancy recovers a smooth residual | `cargo test -p bgo-ssm matern::tests::smoother_recovers_a_smooth_residual` | smoothed RMSE ≤ 0.06 K on a 0.6 K sinusoid with 0.02 K noise | verified (unit) |
+| Matérn hyperprior recovers a smooth component | `cargo test -p bgo-ssm matern::tests::posterior_fits_and_covers_a_smooth_component` | fitted signal scale above the grid floor, smoothed RMSE ≤ 0.08 K on a 0.4 K sinusoid, 95% predictive coverage ≥ 0.85 | verified (unit) |
+| Matérn posterior is calibrated on a white residual | `cargo test -p bgo-ssm matern::tests::posterior_is_calibrated_on_a_white_residual` | 95% predictive coverage ≥ 0.90, smoothed discrepancy RMS ≤ 0.02 K on a 0.04 K white series | verified (unit) |
+| DMDc has no structural bias without measurement noise | `cargo test -p bgo-ssm dmd::tests::recovers_the_chain_exactly_without_measurement_noise` | maximum relative error ≤ 1e-6 on a noise-free trace | verified (unit) |
 | S6 runs the Rust thermal twin and exposes RTS/GP outputs | Playwright Chromium `/thermal/`; `data-testid="thermal"`, `thermal-smoother`, `thermal-gp`, table | finite recovered lag, RTS/GP metrics, plot and accessible table | verified (Chromium e2e + a11y) |
-| S6 shows the filtered likelihood, the Matérn discrepancy and the DMDc modes | Playwright `/thermal/`; `thermal-likelihood`, `thermal-matern`, `thermal-modes` | finite log-likelihood, finite non-negative Matérn RMS and three time constants rendered next to the chain's constants | verified (Chromium e2e + a11y) |
+| S6 shows the filtered likelihood, the fitted Matérn discrepancy and the DMDc modes | Playwright `/thermal/`; `thermal-likelihood`, `thermal-matern`, `thermal-matern-fit`, `thermal-modes` | finite log-likelihood, positive fitted Matérn signal and length scales with 95% coverage between 0 and 1, and three time constants rendered next to the chain's constants | verified (Chromium e2e + a11y) |
 
 ## 8. How to run
 

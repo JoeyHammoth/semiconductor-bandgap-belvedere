@@ -138,6 +138,8 @@ export interface ThermalTwinResult {
   observedK: Float64Array;
   ukfJunctionK: Float64Array;
   rtsJunctionK: Float64Array;
+  /** RTS-smoothed sensor state, the reference for the residual. */
+  rtsSensorK: Float64Array;
   rtsSdK: Float64Array;
   gpMeanK: Float64Array;
   gpSdK: Float64Array;
@@ -145,6 +147,10 @@ export interface ThermalTwinResult {
   maternMeanK: Float64Array;
   maternSdK: Float64Array;
   maternRmsK: number;
+  maternLengthScaleS: number;
+  maternSignalSdK: number;
+  maternCoverage95: number;
+  maternAtGridEdge: boolean;
   junctionRmseK: number;
   sensorRmseK: number;
   gpRmsK: number;
@@ -361,12 +367,17 @@ export interface WasmThermalTwinOutput {
   readonly observed_k: Float64Array;
   readonly ukf_junction_k: Float64Array;
   readonly rts_junction_k: Float64Array;
+  readonly rts_sensor_k: Float64Array;
   readonly rts_sd_k: Float64Array;
   readonly gp_mean_k: Float64Array;
   readonly gp_sd_k: Float64Array;
   readonly matern_mean_k: Float64Array;
   readonly matern_sd_k: Float64Array;
   readonly matern_rms_k: number;
+  readonly matern_length_scale_s: number;
+  readonly matern_signal_sd_k: number;
+  readonly matern_coverage_95: number;
+  readonly matern_at_grid_edge: boolean;
   readonly junction_rmse_k: number;
   readonly sensor_rmse_k: number;
   readonly gp_rms_k: number;

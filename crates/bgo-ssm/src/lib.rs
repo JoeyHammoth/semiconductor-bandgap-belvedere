@@ -18,7 +18,7 @@ pub mod thermal;
 pub mod ukf;
 
 pub use dmd::{estimate_thermal_modes, ThermalModes};
-pub use matern::{matern_discrepancy, MaternDiscrepancy};
+pub use matern::{matern_discrepancy, matern_posterior, MaternDiscrepancy, MaternPosterior};
 pub use thermal::{heater_target_k, simulate_thermal, HeatPulse, ThermalConfig, ThermalRun};
 pub use ukf::{estimate_thermal, smooth_thermal, ThermalEstimate};
 

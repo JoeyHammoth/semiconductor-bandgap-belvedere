@@ -46,6 +46,7 @@ Eight phases, each with acceptance criteria recorded as a GitHub epic. Milestone
 | Hankel-DMDc time constants from the delay-embedded trace | [#5](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/5) |
 | Multi-pulse heater schedule for DMDc conditioning | [#5](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/5) |
 | State-space GP discrepancy as a Matern-3/2 SDE latent state | [#5](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/5) |
+| Matérn hyperprior over the discrepancy scales and a residual strip on S6 | [#5](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/5) |
 
 ## Sequencing rules
 

@@ -11,7 +11,7 @@
 //! keeps the experiment transparent and avoids pretending the residual has a
 //! calibrated physical prior.
 
-use crate::matern::matern_discrepancy;
+use crate::matern::matern_posterior;
 use crate::thermal::{heater_target_k, simulate_thermal, ThermalConfig, ThermalRun};
 
 type Vec3 = [f64; 3];
@@ -33,6 +33,13 @@ pub struct ThermalEstimate {
     pub matern_mean_k: Vec<f64>,
     pub matern_sd_k: Vec<f64>,
     pub matern_rms_k: f64,
+    /// Fitted Matérn length scale and signal scale, with the fraction of the
+    /// residual inside the predictive 95% band.
+    pub matern_length_scale_s: f64,
+    pub matern_signal_sd_k: f64,
+    pub matern_coverage_95: f64,
+    /// True when a fitted Matérn scale sits at the edge of its hyperprior grid.
+    pub matern_at_grid_edge: bool,
     /// Gaussian log-likelihood of the observations under the filter's own
     /// predictive distribution (the Kalman prediction-error decomposition).
     pub log_likelihood: f64,
@@ -156,16 +163,10 @@ pub fn smooth_thermal(config: &ThermalConfig, run: &ThermalRun) -> Result<Therma
         config.sensor_noise_k.max(1.0e-3),
     )?;
 
-    // The same residual, now modelled as a latent Matérn-3/2 state instead of
-    // an RBF kernel: fixed length scale and signal scale, filtered and smoothed
-    // exactly, so the discrepancy is a state of the model rather than a fit.
-    let matern = matern_discrepancy(
-        &run.time_s,
-        &residual,
-        180.0,
-        0.20,
-        config.sensor_noise_k.max(1.0e-3),
-    )?;
+    // The same residual, now modelled as a latent Matérn-3/2 state over a grid
+    // posterior of its length and signal scales, so the discrepancy is a state
+    // of the model rather than a kernel fit.
+    let matern = matern_posterior(&run.time_s, &residual, config.sensor_noise_k.max(1.0e-3))?;
 
     let junction_rmse_k = rmse(&smoothed_junction_k, &run.junction_k);
     let sensor_rmse_k = rmse(&smoothed_sensor_k, observed);
@@ -188,6 +189,10 @@ pub fn smooth_thermal(config: &ThermalConfig, run: &ThermalRun) -> Result<Therma
         matern_mean_k: matern.mean_k,
         matern_sd_k: matern.sd_k,
         matern_rms_k,
+        matern_length_scale_s: matern.length_scale_s,
+        matern_signal_sd_k: matern.signal_sd_k,
+        matern_coverage_95: matern.coverage_95,
+        matern_at_grid_edge: matern.at_grid_edge,
         log_likelihood: marginal_log_likelihood,
     })
 }
@@ -613,6 +618,9 @@ mod tests {
             estimate.smoothed_sensor_k.len()
         );
         assert!(estimate.matern_rms_k.is_finite());
+        assert!(estimate.matern_length_scale_s.is_finite() && estimate.matern_length_scale_s > 0.0);
+        assert!(estimate.matern_signal_sd_k.is_finite() && estimate.matern_signal_sd_k > 0.0);
+        assert!((0.0..=1.0).contains(&estimate.matern_coverage_95));
         assert!(estimate
             .matern_mean_k
             .iter()

@@ -25,6 +25,7 @@
             observed: result!.observedK[point],
             rts: result!.rtsJunctionK[point],
             gp: result!.gpMeanK[point],
+            matern: result!.maternMeanK[point],
           };
         })
       : [],
@@ -86,10 +87,13 @@
     const hair = styles.getPropertyValue('--hair').trim() || 'CanvasText';
     const sensorColour = 'oklch(0.82 0.15 40)';
     const smootherColour = 'oklch(0.72 0.12 260)';
+    const discrepancyColour = 'oklch(0.78 0.11 160)';
 
     const margin = { left: 58, right: 18, top: 24, bottom: 48 };
     const plotWidth = width - margin.left - margin.right;
-    const plotHeight = height - margin.top - margin.bottom;
+    const stripGap = 30;
+    const stripHeight = Math.max(56, Math.round((height - margin.top - margin.bottom) * 0.26));
+    const plotHeight = height - margin.top - margin.bottom - stripHeight - stripGap;
     const values = [
       ...result.plateK,
       ...result.junctionK,
@@ -174,6 +178,68 @@
       context.arc(px(result.timeS[index]), py(result.observedK[index]), 1.4, 0, Math.PI * 2);
       context.fill();
     }
+
+    // Residual strip: the post-smoother sensor residual with the fitted
+    // Matérn-3/2 1σ band drawn around its smoothed mean.
+    const stripTop = margin.top + plotHeight + stripGap;
+    const residual = result.observedK.map((value, index) => value - result!.rtsSensorK[index]);
+    let extent = 0;
+    for (let index = 0; index < result.sampleCount; index += 1) {
+      extent = Math.max(
+        extent,
+        Math.abs(residual[index]),
+        Math.abs(result.maternMeanK[index]) + result.maternSdK[index],
+      );
+    }
+    extent = extent > 0 ? extent * 1.25 : 0.1;
+    const ry = (value: number) => stripTop + (1 - (value + extent) / (2 * extent)) * stripHeight;
+
+    context.globalAlpha = 1;
+    context.strokeStyle = hair;
+    context.lineWidth = 1;
+    context.strokeRect(margin.left, stripTop, plotWidth, stripHeight);
+    context.beginPath();
+    context.moveTo(margin.left, ry(0));
+    context.lineTo(margin.left + plotWidth, ry(0));
+    context.stroke();
+
+    context.beginPath();
+    for (let index = 0; index < result.sampleCount; index += 1) {
+      const x = px(result.timeS[index]);
+      const y = ry(result.maternMeanK[index] + result.maternSdK[index]);
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    }
+    for (let index = result.sampleCount - 1; index >= 0; index -= 1) {
+      context.lineTo(
+        px(result.timeS[index]),
+        ry(result.maternMeanK[index] - result.maternSdK[index]),
+      );
+    }
+    context.closePath();
+    context.fillStyle = discrepancyColour;
+    context.globalAlpha = 0.2;
+    context.fill();
+    context.globalAlpha = 1;
+
+    context.fillStyle = dim;
+    for (let index = 0; index < result.sampleCount; index += 1) {
+      context.beginPath();
+      context.arc(px(result.timeS[index]), ry(residual[index]), 1.1, 0, Math.PI * 2);
+      context.fill();
+    }
+    context.strokeStyle = discrepancyColour;
+    context.lineWidth = 1.4;
+    context.beginPath();
+    for (let index = 0; index < result.sampleCount; index += 1) {
+      const x = px(result.timeS[index]);
+      const y = ry(result.maternMeanK[index]);
+      if (index === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    }
+    context.stroke();
+    context.fillStyle = dim;
+    context.fillText(`residual ±${extent.toFixed(2)} K`, 6, stripTop + 12);
 
     context.fillStyle = ink;
     context.fillText('time (s)', margin.left + plotWidth / 2 - 24, height - 6);
@@ -262,7 +328,9 @@
           <figcaption>
             Thin dim line: plate. Accent line: latent junction. Orange line: sensor. Dots: noisy
             synthetic observations. Dashed blue: RTS-smoothed junction. Bands: RTS 1σ around the
-            junction and the GP residual 1σ around the sensor.
+            junction and the GP residual 1σ around the sensor. Bottom strip: the post-smoother
+            sensor residual as dots, with the smoothed Matérn-3/2 discrepancy (green line) and its
+            1σ band on a scale magnified to the residual.
           </figcaption>
         </figure>
         <div class="metrics">
@@ -291,8 +359,16 @@
             <strong class="tabular">{result.gpRmsK.toFixed(3)} K</strong>
           </p>
           <p data-testid="thermal-matern">
-            <span class="label">Matérn discrepancy RMS</span>
-            <strong class="tabular">{result.maternRmsK.toFixed(4)} K</strong>
+            <span class="label">Matérn σ (fitted)</span>
+            <strong class="tabular">{result.maternSignalSdK.toFixed(4)} K</strong>
+          </p>
+          <p data-testid="thermal-matern-fit">
+            <span class="label">Matérn ℓ · 95% coverage</span>
+            <strong class="tabular">
+              {result.maternLengthScaleS.toFixed(0)} s · {(result.maternCoverage95 * 100).toFixed(
+                0,
+              )}%
+            </strong>
           </p>
           <p data-testid="thermal-likelihood">
             <span class="label">Kalman log-likelihood</span>
@@ -316,6 +392,7 @@
               <th scope="col">Observed (K)</th>
               <th scope="col">RTS junction (K)</th>
               <th scope="col">GP mean (K)</th>
+              <th scope="col">Matérn mean (mK)</th>
             </tr>
           </thead>
           <tbody>
@@ -328,6 +405,7 @@
                 <td class="tabular">{row.observed.toFixed(2)}</td>
                 <td class="tabular">{row.rts.toFixed(2)}</td>
                 <td class="tabular">{row.gp.toFixed(3)}</td>
+                <td class="tabular">{(row.matern * 1000).toFixed(1)}</td>
               </tr>
             {/each}
           </tbody>
@@ -337,9 +415,13 @@
           <span class="tabular">+{result.heaterK.toFixed(1)} K</span>. The lag estimate uses the
           first-order relation between the latent junction and sensor series. The UKF runs on the
           noisy sensor only; RTS smoothing uses the full trace. Sensor RMSE is
-          <span class="tabular">{result.sensorRmseK.toFixed(3)} K</span>, and the post-smoother
-          residual as a two-state Matérn-3/2 SDE has an RMS of
-          <span class="tabular">{result.maternRmsK.toFixed(4)} K</span>. Hankel-DMDc on the
+          <span class="tabular">{result.sensorRmseK.toFixed(3)} K</span>. The post-smoother
+          residual is carried as a two-state Matérn-3/2 SDE whose length and signal scales come from
+          a grid hyperprior: ℓ = <span class="tabular">{result.maternLengthScaleS.toFixed(0)} s</span>,
+          σ = <span class="tabular">{result.maternSignalSdK.toFixed(4)} K</span>{result.maternAtGridEdge
+            ? ' (at the grid floor, so the residual needs no smooth discrepancy beyond sensor noise)'
+            : ''}, with <span class="tabular">{(result.maternCoverage95 * 100).toFixed(1)}%</span> of
+          residuals inside the 95% predictive band. Hankel-DMDc on the
           observed series fits a fourth-order companion model to the three-pulse schedule and
           reports the three distinct modes within
           <span class="tabular">{(result.dmdMaxRelativeError * 100).toFixed(1)}%</span> of the chain
@@ -505,7 +587,7 @@
   }
   canvas {
     width: 100%;
-    height: 360px;
+    height: 440px;
     background: var(--surface);
     border: var(--hairline);
     border-radius: var(--radius);

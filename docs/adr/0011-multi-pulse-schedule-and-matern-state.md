@@ -4,6 +4,9 @@
 - Date: 2026-11-28
 - Supersedes the "future work" notes in [ADR 0009](0009-ukf-rts-gp-residual.md) and
   [ADR 0010](0010-dmdc-and-marginal-likelihood.md)
+- Superseded in part by [ADR 0012](0012-dmdc-noise-sensitivity-and-matern-hyperprior.md): the
+  Matérn scales are now fitted on a grid hyperprior, and the DMDc estimator comparison is recorded
+  there
 
 ## Context
 
@@ -53,10 +56,11 @@ so the discrepancy is a model state, not a kernel matrix over the trace:
 - the filter starts from the stationary covariance `diag(σ², λ²σ²)` and runs a two-state Kalman
   filter followed by an RTS smoother, `O(1)` per sample.
 
-Hyperparameters are fixed at the same values as the RBF diagnostic — 180 s length scale, 0.20 K
+Hyperparameters were fixed at the same values as the RBF diagnostic — 180 s length scale, 0.20 K
 signal standard deviation — with the measurement noise taken from the configured sensor noise. The
-smoothed discrepancy has an RMS of about 8 mK on the default run, with a mean standard deviation of
-about 18 mK.
+smoothed discrepancy had an RMS of about 8 mK on the default run, with a mean standard deviation of
+about 18 mK. ADR 0012 replaced the fixed scales with a grid hyperprior; the fitted signal scale
+lands at the floor of that grid on this trace.
 
 It is not a learned hyperparameter fit, not calibrated, and not evidence over models.
 

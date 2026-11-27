@@ -140,9 +140,14 @@ The same slice now runs a three-state UKF with state `[plate, junction, sensor]`
 sensor as its only measurement, followed by an RTS smoother over the full trace. It also fits a
 Gaussian process with fixed RBF hyperparameters to the post-smoother sensor residual. That GP is a
 diagnostic; the same residual is additionally carried as a latent Matérn-3/2 state — a two-state
-linear SDE with exact discretisation, a Kalman filter and an RTS smoother at fixed 180 s length
-scale and 0.20 K signal scale — so the discrepancy is a state of the model, not only a kernel fit
-([ADR 0011](adr/0011-multi-pulse-schedule-and-matern-state.md)).
+linear SDE with exact discretisation, a Kalman filter and an RTS smoother — so the discrepancy is a
+state of the model, not only a kernel fit ([ADR 0011](adr/0011-multi-pulse-schedule-and-matern-state.md)).
+Its length and signal scales are not fixed: a Jeffreys hyperprior is placed over an 8 × 6 grid
+(60–720 s, 0.005–0.16 K), the marginal likelihood is evaluated per grid point, and the reported
+state is the moment-matched mixture ([ADR 0012](adr/0012-dmdc-noise-sensitivity-and-matern-hyperprior.md)).
+On the default run that gives a 163 s length scale, a 5.2 mK signal scale at the grid floor and
+95.6% coverage of the residual by the 95% predictive band, i.e. the post-smoother residual is
+consistent with white sensor noise.
 
 The filter also reports its own predictive log-likelihood: the sum of the Gaussian log densities of
 the observations under the unscented predicted measurement. That is the Kalman prediction-error
@@ -154,7 +159,10 @@ eigenvalues by Durand–Kerner, then `τ = −Δt / ln|λ|`. The three slowest d
 with their fit residual and their maximum relative error against the chain's configured constants:
 433/74/29 s against 420/75/25 s on the default seed, so the slow and middle poles land within a few
 percent and the fastest stays about 16% long because observation noise whitens it. The fit residual
-includes the control terms. See [ADR 0010](adr/0010-dmdc-and-marginal-likelihood.md) and
+includes the control terms. The regression stays ordinary least squares: two-stage and total least
+squares were both measured and both were worse, and a noiseless trace is recovered to 1e-7
+([ADR 0012](adr/0012-dmdc-noise-sensitivity-and-matern-hyperprior.md)). See
+[ADR 0010](adr/0010-dmdc-and-marginal-likelihood.md) and
 [ADR 0011](adr/0011-multi-pulse-schedule-and-matern-state.md).
 
 ## 7. Identifiability
