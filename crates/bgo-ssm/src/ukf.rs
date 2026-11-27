@@ -632,6 +632,27 @@ mod tests {
     }
 
     #[test]
+    fn matern_coverage_holds_across_seeds() {
+        // The fitted band is a single-trace statement, so the coverage claim is
+        // checked on several traces rather than the default one.
+        let mut coverages = Vec::new();
+        for seed in [1_u64, 7, 42, 0x5eed_7e11, 12_345] {
+            let config = ThermalConfig {
+                seed,
+                ..ThermalConfig::default()
+            };
+            let estimate = estimate_thermal(&config).expect("thermal estimate");
+            coverages.push(estimate.matern_coverage_95);
+        }
+        assert!(
+            coverages.iter().all(|value| (0.90..=1.0).contains(value)),
+            "coverage by seed: {coverages:?}"
+        );
+        let mean = coverages.iter().sum::<f64>() / coverages.len() as f64;
+        assert!((0.93..=0.99).contains(&mean), "mean coverage {mean}");
+    }
+
+    #[test]
     fn gp_discrepancy_is_finite() {
         let config = ThermalConfig::default();
         let estimate = estimate_thermal(&config).expect("thermal estimate");

@@ -10,7 +10,7 @@
 //! between the plate, the junction and the lagging sensor without inventing a
 //! measured trace.
 
-use std::f64::consts::PI;
+use crate::rng::Rng;
 
 /// Heater-on intervals in the identification schedule.
 pub const HEAT_PULSES: usize = 3;
@@ -216,36 +216,6 @@ fn estimate_lag(junction: &[f64], sensor: &[f64], dt: f64) -> f64 {
     }
     let alpha = (numerator / denominator).clamp(1.0e-12, 1.0 - 1.0e-12);
     -dt / (1.0 - alpha).ln()
-}
-
-struct Rng {
-    state: u64,
-}
-
-impl Rng {
-    fn new(seed: u64) -> Self {
-        Self {
-            state: seed ^ 0x9e37_79b9_7f4a_7c15,
-        }
-    }
-
-    fn next_u64(&mut self) -> u64 {
-        self.state = self.state.wrapping_add(0x9e37_79b9_7f4a_7c15);
-        let mut value = self.state;
-        value = (value ^ (value >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
-        value = (value ^ (value >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
-        value ^ (value >> 31)
-    }
-
-    fn uniform(&mut self) -> f64 {
-        ((self.next_u64() >> 11) as f64 + 0.5) / ((1u64 << 53) as f64)
-    }
-
-    fn normal(&mut self) -> f64 {
-        let first = self.uniform().max(f64::MIN_POSITIVE);
-        let second = self.uniform();
-        (-2.0 * first.ln()).sqrt() * (2.0 * PI * second).cos()
-    }
 }
 
 #[cfg(test)]

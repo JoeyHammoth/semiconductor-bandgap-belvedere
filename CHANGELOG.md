@@ -12,6 +12,7 @@
 - S6 Matérn-3/2 latent discrepancy: a two-state linear SDE with exact discretisation, Kalman filter and RTS smoother, replacing the "future work" note for a state-space GP.
 - Jeffreys hyperprior over the Matérn length and signal scales, fitted on an 8 × 6 grid with a moment-matched mixture and a reported 95% predictive coverage (95.6% on the default run).
 - S6 residual strip plotting the post-smoother residual, the smoothed discrepancy and its 1σ band on a magnified axis.
+- DMDc 5–95% modal bands from 64 parametric-bootstrap refits of the fitted ARX model, shown beside each time constant on S6.
 
 ### Changed
 

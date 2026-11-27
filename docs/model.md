@@ -161,7 +161,9 @@ with their fit residual and their maximum relative error against the chain's con
 percent and the fastest stays about 16% long because observation noise whitens it. The fit residual
 includes the control terms. The regression stays ordinary least squares: two-stage and total least
 squares were both measured and both were worse, and a noiseless trace is recovered to 1e-7
-([ADR 0012](adr/0012-dmdc-noise-sensitivity-and-matern-hyperprior.md)). See
+([ADR 0012](adr/0012-dmdc-noise-sensitivity-and-matern-hyperprior.md)). Each mode is reported with
+a 5–95% band from 64 parametric-bootstrap refits of the fitted model; the heater amplitude was swept
+and is not the limiting factor ([ADR 0013](adr/0013-dmdc-modal-bands.md)). See
 [ADR 0010](adr/0010-dmdc-and-marginal-likelihood.md) and
 [ADR 0011](adr/0011-multi-pulse-schedule-and-matern-state.md).
 

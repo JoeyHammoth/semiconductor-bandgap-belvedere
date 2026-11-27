@@ -20,6 +20,7 @@
 //! the configured multi-pulse heater schedule, whose narrow first pulse gives
 //! the fast sensor mode its own step edge.
 
+use crate::rng::Rng;
 use crate::thermal::{heater_target_k, ThermalConfig};
 
 /// States in the forward chain; that many modes are reported.
@@ -31,6 +32,11 @@ const ORDER: usize = STATES + 1;
 const DUPLICATE_TOLERANCE: f64 = 0.05;
 /// Lags of the heater input kept as control columns.
 const CONTROL_LAGS: usize = 3;
+/// Moving-block bootstrap replicates over the trace.
+const BOOTSTRAP_REPLICATES: usize = 64;
+/// Block length in samples. Long enough to keep the slow mode's correlation,
+/// short enough that a replicate contains several heater edges.
+const BOOTSTRAP_BLOCK: usize = 20;
 const MAX_ITERATIONS: usize = 500;
 const CONVERGED: f64 = 1.0e-12;
 
@@ -48,6 +54,12 @@ pub struct ThermalModes {
     pub max_relative_error: f64,
     /// Embedding depth that was used.
     pub order: usize,
+    /// 5th and 95th percentile of a moving-block bootstrap of the same fit, per
+    /// reported mode. `NaN` when too few replicates recovered a stable model.
+    pub time_constant_low_s: Vec<f64>,
+    pub time_constant_high_s: Vec<f64>,
+    /// Replicates that produced a stable model.
+    pub bootstrap_replicates: usize,
 }
 
 /// Fit a Hankel-DMDc model to the observed sensor series and report its modes.
@@ -56,18 +68,41 @@ pub fn estimate_thermal_modes(
     time_s: &[f64],
     series: &[f64],
 ) -> Result<ThermalModes, String> {
-    fit_modes(config, time_s, series, ORDER, CONTROL_LAGS)
+    if time_s.len() != series.len() {
+        return Err("thermal run is inconsistent".into());
+    }
+    let heater = heater_series(config, series.len());
+    let mut fitted = fit_modes_with(config, series, &heater, ORDER, CONTROL_LAGS)?;
+    let (low, high, replicates) = bootstrap_modes(config, series, &heater, &fitted);
+    fitted.modes.time_constant_low_s = low;
+    fitted.modes.time_constant_high_s = high;
+    fitted.modes.bootstrap_replicates = replicates;
+    Ok(fitted.modes)
 }
 
-fn fit_modes(
+/// A fit plus the pieces a parametric bootstrap needs to regenerate the trace.
+struct FittedRegression {
+    modes: ThermalModes,
+    solution: Vec<f64>,
+    residuals: Vec<f64>,
+}
+
+/// Heater target at every sample, in kelvin above ambient.
+fn heater_series(config: &ThermalConfig, count: usize) -> Vec<f64> {
+    (0..count)
+        .map(|index| heater_target(config, index))
+        .collect()
+}
+
+fn fit_modes_with(
     config: &ThermalConfig,
-    time_s: &[f64],
     series: &[f64],
+    heater: &[f64],
     order: usize,
     control_lags: usize,
-) -> Result<ThermalModes, String> {
-    let count = time_s.len();
-    if order == 0 || count <= order.max(control_lags) || series.len() != count {
+) -> Result<FittedRegression, String> {
+    let count = series.len();
+    if order == 0 || count <= order.max(control_lags) || heater.len() != count {
         return Err("thermal run is too short for a Hankel embedding".into());
     }
     let dt = config.sample_s;
@@ -94,7 +129,7 @@ fn fit_modes(
             row.push(centred[index - lag]);
         }
         for lag in 0..control_lags {
-            row.push(heater_target(config, index - lag));
+            row.push(heater[index - lag]);
         }
         row.push(1.0);
         design.push(row);
@@ -153,20 +188,22 @@ fn fit_modes(
         })
         .fold(0.0_f64, f64::max);
 
-    Ok(ThermalModes {
-        relative_residual: relative_residual(
-            config,
+    let residuals = one_step_residuals(order, control_lags, start, &solution, &centred, heater);
+    let relative_residual = relative_residual(&residuals, &centred, start);
+    Ok(FittedRegression {
+        modes: ThermalModes {
+            relative_residual,
+            time_constants_s,
+            frequencies_rad_s,
+            true_time_constants_s,
+            max_relative_error,
             order,
-            control_lags,
-            start,
-            &solution,
-            &centred,
-        ),
-        time_constants_s,
-        frequencies_rad_s,
-        true_time_constants_s,
-        max_relative_error,
-        order,
+            time_constant_low_s: Vec::new(),
+            time_constant_high_s: Vec::new(),
+            bootstrap_replicates: 0,
+        },
+        solution,
+        residuals,
     })
 }
 
@@ -175,30 +212,118 @@ fn heater_target(config: &ThermalConfig, index: usize) -> f64 {
     heater_target_k(config, index as f64 * config.sample_s)
 }
 
-/// One-step prediction residual of the fitted model, relative to the signal.
-/// The control terms belong to the fitted model, so they are included here;
-/// omitting them would report the residual of the autoregression alone.
-fn relative_residual(
+/// Parametric bootstrap of the fitted ARX model: the residuals are resampled with
+/// replacement and pushed back through the fitted recursion, which keeps every
+/// mode's correlation intact. A moving-block bootstrap was tried first and
+/// rejected — a 200 s block cannot carry the 420 s plate response, and it moved
+/// the slow pole from 433 s to a 71–304 s interval that excluded the fit.
+fn bootstrap_modes(
     config: &ThermalConfig,
+    series: &[f64],
+    heater: &[f64],
+    fitted: &FittedRegression,
+) -> (Vec<f64>, Vec<f64>, usize) {
+    let count = series.len();
+    let point = &fitted.modes.time_constants_s;
+    if point.is_empty() || fitted.residuals.len() < BOOTSTRAP_BLOCK || count <= ORDER + CONTROL_LAGS
+    {
+        return (vec![f64::NAN; point.len()], vec![f64::NAN; point.len()], 0);
+    }
+    let offset = series.iter().sum::<f64>() / count as f64;
+    let centred = series
+        .iter()
+        .map(|value| value - offset)
+        .collect::<Vec<_>>();
+    let start = ORDER.max(CONTROL_LAGS) - 1;
+    let mut rng = Rng::new(config.seed ^ 0x00b0_0575);
+    let mut draws = vec![Vec::with_capacity(BOOTSTRAP_REPLICATES); point.len()];
+    let mut successful = 0;
+    for _ in 0..BOOTSTRAP_REPLICATES {
+        let mut simulated = centred[..=start].to_vec();
+        for index in start..(count - 1) {
+            let mut prediction = fitted.solution[ORDER + CONTROL_LAGS];
+            for lag in 0..ORDER {
+                prediction += fitted.solution[lag] * simulated[index - lag];
+            }
+            for lag in 0..CONTROL_LAGS {
+                prediction += fitted.solution[ORDER + lag] * heater[index - lag];
+            }
+            let draw = ((rng.uniform() * fitted.residuals.len() as f64) as usize)
+                .min(fitted.residuals.len() - 1);
+            simulated.push(prediction + fitted.residuals[draw]);
+        }
+        let Ok(replicate) = fit_modes_with(config, &simulated, heater, ORDER, CONTROL_LAGS) else {
+            continue;
+        };
+        let modes = replicate.modes;
+        successful += 1;
+        for (target, values) in point.iter().zip(draws.iter_mut()) {
+            if let Some(nearest) = modes
+                .time_constants_s
+                .iter()
+                .copied()
+                .min_by(|left, right| (left - target).abs().total_cmp(&(right - target).abs()))
+            {
+                values.push(nearest);
+            }
+        }
+    }
+    let low = draws
+        .iter()
+        .map(|values| percentile(values, 0.05))
+        .collect();
+    let high = draws
+        .iter()
+        .map(|values| percentile(values, 0.95))
+        .collect();
+    (low, high, successful)
+}
+
+fn percentile(values: &[f64], quantile: f64) -> f64 {
+    if values.len() < 8 {
+        return f64::NAN;
+    }
+    let mut sorted = values.to_vec();
+    sorted.sort_by(f64::total_cmp);
+    let position = quantile * (sorted.len() - 1) as f64;
+    let lower = position.floor() as usize;
+    let upper = position.ceil() as usize;
+    let weight = position - lower as f64;
+    sorted[lower] * (1.0 - weight) + sorted[upper] * weight
+}
+
+/// One-step prediction residuals of the fitted model. The control terms belong to
+/// the fitted model, so they are included; omitting them would report the residual
+/// of the autoregression alone.
+fn one_step_residuals(
     order: usize,
     control_lags: usize,
     start: usize,
     solution: &[f64],
     observed: &[f64],
-) -> f64 {
-    let mut residual_energy = 0.0;
-    let mut signal_energy = 0.0;
+    heater: &[f64],
+) -> Vec<f64> {
+    let mut residuals = Vec::with_capacity(observed.len());
     for index in start..(observed.len() - 1) {
         let mut prediction = solution[order + control_lags];
         for lag in 0..order {
             prediction += solution[lag] * observed[index - lag];
         }
         for lag in 0..control_lags {
-            prediction += solution[order + lag] * heater_target(config, index - lag);
+            prediction += solution[order + lag] * heater[index - lag];
         }
-        let target = observed[index + 1];
-        residual_energy += (target - prediction).powi(2);
-        signal_energy += target * target;
+        residuals.push(observed[index + 1] - prediction);
+    }
+    residuals
+}
+
+/// One-step prediction residual of the fitted model, relative to the signal.
+fn relative_residual(residuals: &[f64], observed: &[f64], start: usize) -> f64 {
+    let mut residual_energy = 0.0;
+    let mut signal_energy = 0.0;
+    for (residual, index) in residuals.iter().zip(start..(observed.len() - 1)) {
+        residual_energy += residual * residual;
+        signal_energy += observed[index + 1] * observed[index + 1];
     }
     if signal_energy <= 0.0 {
         return f64::NAN;
@@ -402,6 +527,34 @@ mod tests {
             "relative residual {}",
             modes.relative_residual
         );
+    }
+
+    #[test]
+    fn bootstrap_interval_brackets_the_point_estimate() {
+        let config = ThermalConfig::default();
+        let run = simulate_thermal(&config).expect("thermal trace");
+        let modes =
+            estimate_thermal_modes(&config, &run.time_s, &run.observed_k).expect("thermal modes");
+        assert!(
+            modes.bootstrap_replicates >= BOOTSTRAP_REPLICATES / 2,
+            "only {} replicates recovered a model",
+            modes.bootstrap_replicates
+        );
+        for ((low, high), tau) in modes
+            .time_constant_low_s
+            .iter()
+            .zip(&modes.time_constant_high_s)
+            .zip(&modes.time_constants_s)
+        {
+            assert!(low.is_finite() && high.is_finite());
+            assert!(
+                low <= tau && tau <= high,
+                "interval {low}..{high} excludes {tau}"
+            );
+            // The intervals are genuinely wide — the middle pole's 5–95% band
+            // spans roughly a factor of 1.7 — so this only rejects a runaway.
+            assert!(high / low < 4.0, "interval too wide: {low}..{high}");
+        }
     }
 
     #[test]

@@ -156,6 +156,10 @@ export interface ThermalTwinResult {
   gpRmsK: number;
   kalmanLogLikelihood: number;
   dmdTauS: Float64Array;
+  /** 5th and 95th percentile of a parametric bootstrap, per mode. */
+  dmdTauLowS: Float64Array;
+  dmdTauHighS: Float64Array;
+  dmdBootstrapReplicates: number;
   dmdFrequencyRadS: Float64Array;
   dmdRelativeResidual: number;
   dmdMaxRelativeError: number;
@@ -383,6 +387,9 @@ export interface WasmThermalTwinOutput {
   readonly gp_rms_k: number;
   readonly kalman_log_likelihood: number;
   readonly dmd_tau_s: Float64Array;
+  readonly dmd_tau_low_s: Float64Array;
+  readonly dmd_tau_high_s: Float64Array;
+  readonly dmd_bootstrap_replicates: number;
   readonly dmd_frequency_rad_s: Float64Array;
   readonly dmd_relative_residual: number;
   readonly dmd_max_relative_error: number;

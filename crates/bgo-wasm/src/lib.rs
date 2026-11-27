@@ -1492,6 +1492,9 @@ pub struct ThermalTwinOutput {
     gp_rms_k: f64,
     kalman_log_likelihood: f64,
     dmd_tau_s: Vec<f64>,
+    dmd_tau_low_s: Vec<f64>,
+    dmd_tau_high_s: Vec<f64>,
+    dmd_bootstrap_replicates: u32,
     dmd_frequency_rad_s: Vec<f64>,
     dmd_relative_residual: f64,
     dmd_max_relative_error: f64,
@@ -1621,6 +1624,21 @@ impl ThermalTwinOutput {
     }
 
     #[wasm_bindgen(getter)]
+    pub fn dmd_tau_low_s(&self) -> Vec<f64> {
+        self.dmd_tau_low_s.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn dmd_tau_high_s(&self) -> Vec<f64> {
+        self.dmd_tau_high_s.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn dmd_bootstrap_replicates(&self) -> u32 {
+        self.dmd_bootstrap_replicates
+    }
+
+    #[wasm_bindgen(getter)]
     pub fn dmd_frequency_rad_s(&self) -> Vec<f64> {
         self.dmd_frequency_rad_s.clone()
     }
@@ -1699,6 +1717,9 @@ fn run_thermal_twin_impl(seed: u32) -> Result<ThermalTwinOutput, String> {
         gp_rms_k: estimate.gp_rms_k,
         kalman_log_likelihood: estimate.log_likelihood,
         dmd_tau_s: modes.time_constants_s,
+        dmd_tau_low_s: modes.time_constant_low_s,
+        dmd_tau_high_s: modes.time_constant_high_s,
+        dmd_bootstrap_replicates: modes.bootstrap_replicates as u32,
         dmd_frequency_rad_s: modes.frequencies_rad_s,
         dmd_relative_residual: modes.relative_residual,
         dmd_max_relative_error: modes.max_relative_error,
@@ -1885,6 +1906,9 @@ mod tests {
         assert!(output.gp_rms_k().is_finite());
         assert!(output.kalman_log_likelihood().is_finite());
         assert_eq!(output.dmd_tau_s().len(), 3);
+        assert_eq!(output.dmd_tau_low_s().len(), 3);
+        assert_eq!(output.dmd_tau_high_s().len(), 3);
+        assert!(output.dmd_bootstrap_replicates() >= 32);
         assert_eq!(output.dmd_frequency_rad_s().len(), 3);
         assert!(output.dmd_tau_s().iter().all(|tau| *tau > 0.0));
         assert!(output.dmd_max_relative_error() < 0.2);

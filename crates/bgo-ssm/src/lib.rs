@@ -12,6 +12,8 @@
 
 #![forbid(unsafe_code)]
 
+mod rng;
+
 pub mod dmd;
 pub mod matern;
 pub mod thermal;

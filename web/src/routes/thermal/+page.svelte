@@ -30,6 +30,19 @@
         })
       : [],
   );
+  const dmdModes = $derived(
+    result
+      ? Array.from(result.dmdTauS, (tau, index) => {
+          const low = result!.dmdTauLowS[index];
+          const high = result!.dmdTauHighS[index];
+          const band =
+            Number.isFinite(low) && Number.isFinite(high)
+              ? ` (${low.toFixed(0)}–${high.toFixed(0)})`
+              : '';
+          return `${tau.toFixed(0)}${band}`;
+        }).join(' · ')
+      : '',
+  );
   const lagError = $derived(
     result
       ? Math.abs(result.lagTauS - result.trueTauS) / Math.max(1e-9, result.trueTauS)
@@ -375,9 +388,9 @@
             <strong class="tabular">{result.kalmanLogLikelihood.toFixed(1)}</strong>
           </p>
           <p data-testid="thermal-modes">
-            <span class="label">DMDc τ</span>
+            <span class="label">DMDc τ (5–95% band)</span>
             <strong class="tabular">
-              {Array.from(result.dmdTauS, (tau) => tau.toFixed(0)).join(' · ')} s
+              {dmdModes} s
             </strong>
           </p>
         </div>
@@ -426,9 +439,11 @@
           reports the three distinct modes within
           <span class="tabular">{(result.dmdMaxRelativeError * 100).toFixed(1)}%</span> of the chain
           constants (fit residual
-          <span class="tabular">{(result.dmdRelativeResidual * 100).toFixed(1)}%</span>); the
-          fastest pole reads a few seconds long because sensor noise whitens it, so this is a
-          diagnostic, not an identification claim.
+          <span class="tabular">{(result.dmdRelativeResidual * 100).toFixed(1)}%</span>). The bands
+          come from
+          <span class="tabular">{result.dmdBootstrapReplicates}</span> parametric-bootstrap refits of
+          the fitted model over the trace; the middle and fastest poles are the least certain, so
+          this is a diagnostic, not an identification claim.
         </p>
       </section>
     {/if}

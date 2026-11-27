@@ -213,6 +213,9 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             gpRmsK: output.gp_rms_k,
             kalmanLogLikelihood: output.kalman_log_likelihood,
             dmdTauS: output.dmd_tau_s,
+            dmdTauLowS: output.dmd_tau_low_s,
+            dmdTauHighS: output.dmd_tau_high_s,
+            dmdBootstrapReplicates: output.dmd_bootstrap_replicates,
             dmdFrequencyRadS: output.dmd_frequency_rad_s,
             dmdRelativeResidual: output.dmd_relative_residual,
             dmdMaxRelativeError: output.dmd_max_relative_error,
@@ -238,6 +241,8 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             value.maternMeanK.buffer as ArrayBuffer,
             value.maternSdK.buffer as ArrayBuffer,
             value.dmdTauS.buffer as ArrayBuffer,
+            value.dmdTauLowS.buffer as ArrayBuffer,
+            value.dmdTauHighS.buffer as ArrayBuffer,
             value.dmdFrequencyRadS.buffer as ArrayBuffer,
           ]);
         } finally {
