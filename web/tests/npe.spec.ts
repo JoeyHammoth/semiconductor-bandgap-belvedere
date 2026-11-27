@@ -41,3 +41,32 @@ test('PWA manifest and service worker are registered', async ({ page }) => {
     .poll(async () => page.evaluate(() => 'serviceWorker' in navigator))
     .toBe(true);
 });
+
+test('PWA serves a navigation offline after the worker activates', async ({
+  page,
+  context,
+  browserName,
+}) => {
+  test.skip(browserName !== 'chromium', 'service-worker offline navigation is one Chromium run');
+  await page.goto('');
+  await page.evaluate(async () => {
+    const registration = await navigator.serviceWorker.ready;
+    if (!registration.active) throw new Error('service worker did not activate');
+    if (!navigator.serviceWorker.controller) {
+      await new Promise<void>((resolve) => {
+        navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true });
+      });
+    }
+  });
+  await page.reload();
+  await page.waitForFunction(() => Boolean(navigator.serviceWorker.controller));
+
+  await context.setOffline(true);
+  try {
+    await page.goto('thermal/');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('sensor lags');
+    await expect(page.getByTestId('thermal-run')).toBeVisible();
+  } finally {
+    await context.setOffline(false);
+  }
+});

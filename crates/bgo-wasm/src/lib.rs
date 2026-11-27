@@ -13,6 +13,7 @@ use bgo_infer::{
 use bgo_info::{analyze_fisher, covariance_ellipse, fisher_from_jacobian};
 use bgo_nn::Flow;
 use bgo_ot::sliced_wasserstein_2;
+use bgo_ssm::{simulate_thermal, ThermalConfig};
 use wasm_bindgen::prelude::*;
 
 /// Core version, rendered in the status bar.
@@ -1464,6 +1465,109 @@ pub fn run_npe(
         .map_err(|error| JsValue::from_str(&error))
 }
 
+/// First slice of the S6 thermal twin: plate, junction and sensor trajectories
+/// with a recovered sensor lag.
+#[wasm_bindgen]
+pub struct ThermalTwinOutput {
+    time_s: Vec<f64>,
+    plate_k: Vec<f64>,
+    junction_k: Vec<f64>,
+    sensor_k: Vec<f64>,
+    observed_k: Vec<f64>,
+    sample_count: u32,
+    lag_tau_s: f64,
+    true_tau_s: f64,
+    max_lag_k: f64,
+    ambient_k: f64,
+    heater_k: f64,
+}
+
+#[wasm_bindgen]
+impl ThermalTwinOutput {
+    #[wasm_bindgen(getter)]
+    pub fn time_s(&self) -> Vec<f64> {
+        self.time_s.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn plate_k(&self) -> Vec<f64> {
+        self.plate_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn junction_k(&self) -> Vec<f64> {
+        self.junction_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn sensor_k(&self) -> Vec<f64> {
+        self.sensor_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn observed_k(&self) -> Vec<f64> {
+        self.observed_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn sample_count(&self) -> u32 {
+        self.sample_count
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn lag_tau_s(&self) -> f64 {
+        self.lag_tau_s
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn true_tau_s(&self) -> f64 {
+        self.true_tau_s
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn max_lag_k(&self) -> f64 {
+        self.max_lag_k
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn ambient_k(&self) -> f64 {
+        self.ambient_k
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn heater_k(&self) -> f64 {
+        self.heater_k
+    }
+}
+
+fn run_thermal_twin_impl(seed: u32) -> Result<ThermalTwinOutput, String> {
+    let config = ThermalConfig {
+        seed: u64::from(seed),
+        ..ThermalConfig::default()
+    };
+    let run = simulate_thermal(&config)?;
+    Ok(ThermalTwinOutput {
+        sample_count: run.time_s.len() as u32,
+        time_s: run.time_s,
+        plate_k: run.plate_k,
+        junction_k: run.junction_k,
+        sensor_k: run.sensor_k,
+        observed_k: run.observed_k,
+        lag_tau_s: run.lag_tau_s,
+        true_tau_s: run.true_tau_s,
+        max_lag_k: run.max_lag_k,
+        ambient_k: run.ambient_k,
+        heater_k: run.heater_k,
+    })
+}
+
+/// Run the synthetic thermal twin. The returned series and recovered lag are
+/// computed in Rust; the page only draws them.
+#[wasm_bindgen]
+pub fn run_thermal_twin(seed: u32) -> Result<ThermalTwinOutput, JsValue> {
+    run_thermal_twin_impl(seed).map_err(|error| JsValue::from_str(&error))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1608,6 +1712,16 @@ mod tests {
             .all(|value| value.is_finite()));
         assert!(output.w2_distance().is_finite());
         assert!(output.w2_bootstrap_se().is_finite());
+    }
+
+    #[test]
+    fn thermal_twin_returns_a_lagged_series() {
+        let output = run_thermal_twin_impl(7).expect("thermal twin");
+        assert_eq!(output.sample_count(), 181);
+        assert_eq!(output.time_s().len(), 181);
+        assert_eq!(output.observed_k().len(), 181);
+        assert!(output.max_lag_k() > 0.0);
+        assert!((output.lag_tau_s() - output.true_tau_s()).abs() < 0.5);
     }
 
     #[test]

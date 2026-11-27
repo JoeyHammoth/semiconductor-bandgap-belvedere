@@ -35,6 +35,14 @@ Eight phases, each with acceptance criteria recorded as a GitHub epic. Milestone
 | MCLMC and diagnostics: sampler, R-hat, ESS and energy error | [#26](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/26) |
 | Infer view and simulation-labelled S0/S1 scenes | [#27](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/27) |
 
+## Phase 4 tasks
+
+| Task | Issue |
+|---|---|
+| First thermal-twin slice: plate/junction/sensor chain, lag recovery and S6 | [#5](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/5) |
+| UKF/RTS smoother and Kalman marginal likelihood | planned under #5 |
+| State-space GP discrepancy and Hankel-DMDc time constants | planned under #5 |
+
 ## Sequencing rules
 
 - The physics audit gates public copy, not scaffolding.

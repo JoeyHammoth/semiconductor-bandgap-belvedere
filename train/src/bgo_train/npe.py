@@ -41,13 +41,15 @@ CALIBRATION_JSON = ROOT / "web" / "static" / "data" / "npe-calibration.json"
 GOLDEN_JSON = ROOT / "crates" / "bgo-nn" / "tests" / "references" / "m0-flow-golden.json"
 
 PARAMETER_NAMES = ["eg_ev", "ln_b"]
-# The M0 NPE is explicitly local to the report-anchored synthetic case. The
-# broad M0 prior is used by MCLMC; an amortised model trained over the full
-# prior would need far more simulations and cannot claim calibration here.
+# The published artifact is the local, report-anchored model. A broad-prior
+# retrain was attempted on 2026-11-26 and failed its SBC/OOD gate; it is not
+# shipped (see docs/validation.md). Keep the verified local contract here so
+# `--all` reproduces the committed artifact rather than the failed experiment.
 PARAMETER_CENTER = np.array([1.002, 5.504239846], dtype=np.float64)
 PARAMETER_SCALE = np.array([0.02, 0.2], dtype=np.float64)
 PRIOR_LOW = np.array([0.90, 4.5], dtype=np.float64)
 PRIOR_HIGH = np.array([1.10, 6.5], dtype=np.float64)
+PRIOR_SCOPE = "local report-anchored M0"
 
 
 @dataclass(frozen=True)
@@ -452,7 +454,7 @@ def train(config: NpeConfig) -> dict[str, Any]:
         "training_framework": "jax",
         "model": "M0",
         "parameter_names": PARAMETER_NAMES,
-        "prior_scope": "local report-anchored M0",
+        "prior_scope": PRIOR_SCOPE,
         "prior_low": PRIOR_LOW.tolist(),
         "prior_high": PRIOR_HIGH.tolist(),
         "condition_dim": int(conditions.shape[1]),
@@ -662,8 +664,8 @@ def calibrate(
             "fpr_target": 0.02,
         },
         "parameter_names": PARAMETER_NAMES,
-        "note": "Synthetic M0 local to the report-anchored case. The original measurements do not exist (ADR 0006).",
-        "prior_scope": "local report-anchored M0",
+        "note": "Synthetic local M0. The original measurements do not exist (ADR 0006).",
+        "prior_scope": PRIOR_SCOPE,
     }
     return report, int(samples.shape[0] * samples.shape[1])
 
@@ -712,7 +714,7 @@ def main() -> None:
     if not args.all:
         parser.error("choose --all or --check")
     config = NpeConfig()
-    print("training synthetic M0 conditional spline flow")
+    print("training synthetic local M0 conditional affine flow")
     print(json.dumps(asdict(config), indent=2))
     result = train(config)
     print(json.dumps(result, indent=2))

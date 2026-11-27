@@ -187,6 +187,7 @@
       <a href="../evidence/">Evidence</a>
       <a href="../ledger/">Ledger</a>
       <a href="../npe/" aria-current="page">Instant</a>
+      <a href="../thermal/">Thermal</a>
       <button
         class="theme"
         type="button"

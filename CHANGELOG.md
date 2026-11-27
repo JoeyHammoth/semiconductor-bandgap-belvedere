@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Broad-prior M0 NPE experiment recorded as a failed calibration; the verified local v0.1.0 artifact is retained.
+- First Phase 4 thermal-twin slice: deterministic plate/junction/sensor chain, WASM export and `/thermal/` S6 scene.
+- Offline-navigation Playwright coverage for the PWA service worker.
+
 ## v0.1.0 — 2026-11-26
 
 Phase 3 MVP: a calibrated local neural posterior, the Rust flow engine, an offline PWA shell and a guided story.

@@ -58,6 +58,7 @@ dependencies = [
  "bgo-nn",
  "bgo-ot",
  "bgo-physics",
+ "bgo-ssm",
  "wasm-bindgen",
 ]
 

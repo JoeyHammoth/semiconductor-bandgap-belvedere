@@ -126,6 +126,24 @@ export interface NestedTraceResult {
   priorHigh: Float64Array;
 }
 
+export interface ThermalTwinRequest {
+  seed: number;
+}
+
+export interface ThermalTwinResult {
+  timeS: Float64Array;
+  plateK: Float64Array;
+  junctionK: Float64Array;
+  sensorK: Float64Array;
+  observedK: Float64Array;
+  sampleCount: number;
+  lagTauS: number;
+  trueTauS: number;
+  maxLagK: number;
+  ambientK: number;
+  heaterK: number;
+}
+
 export interface NpeRequest {
   /** JSON architecture manifest for the frozen synthetic M0 flow. */
   manifestJson: string;
@@ -223,6 +241,7 @@ export type Request =
       reported: Float64Array;
     }
   | { id: number; kind: 'nested'; livePoints: number; seed: number }
+  | ({ id: number; kind: 'thermal' } & ThermalTwinRequest)
   | ({ id: number; kind: 'npe' } & NpeRequest)
   | ({ id: number; kind: 'svgd' } & SvgdComparisonRequest);
 
@@ -235,6 +254,7 @@ export type Response =
   | { id: number; ok: true; kind: 'diagnostics'; value: DiagnosticsResult }
   | { id: number; ok: true; kind: 'fisher'; value: FisherResult }
   | { id: number; ok: true; kind: 'nested'; value: NestedTraceResult }
+  | { id: number; ok: true; kind: 'thermal'; value: ThermalTwinResult }
   | { id: number; ok: true; kind: 'npe'; value: NpeResult }
   | { id: number; ok: true; kind: 'svgd'; value: SvgdComparisonResult }
   | { id: number; ok: false; error: string };
@@ -313,6 +333,21 @@ export interface WasmNestedTraceOutput {
   readonly live_positions: Float64Array;
   readonly prior_low: Float64Array;
   readonly prior_high: Float64Array;
+  free: () => void;
+}
+
+export interface WasmThermalTwinOutput {
+  readonly time_s: Float64Array;
+  readonly plate_k: Float64Array;
+  readonly junction_k: Float64Array;
+  readonly sensor_k: Float64Array;
+  readonly observed_k: Float64Array;
+  readonly sample_count: number;
+  readonly lag_tau_s: number;
+  readonly true_tau_s: number;
+  readonly max_lag_k: number;
+  readonly ambient_k: number;
+  readonly heater_k: number;
   free: () => void;
 }
 
@@ -410,6 +445,7 @@ export interface CoreModule {
     reported: Float64Array,
   ) => WasmFisherOutput;
   run_nested_gaussian: (livePoints: number, seed: number) => WasmNestedTraceOutput;
+  run_thermal_twin: (seed: number) => WasmThermalTwinOutput;
   run_npe: (
     manifestJson: string,
     weights: Uint8Array,

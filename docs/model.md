@@ -116,6 +116,21 @@ Prior sensitivity is a first-class output: every ledger entry carries a flag, an
 
 Voltage residuals are modelled as Gaussian with an instrument-derived scale plus an optional GP discrepancy term. When the latent-temperature model (M5) is active, the likelihood is the Kalman filter marginal likelihood over the thermal state, not a plug-in temperature.
 
+### 6.1 First M5 implementation slice
+
+The first Phase 4 slice is a deterministic synthetic chain, not yet a Kalman likelihood:
+
+```
+T_plate    -> first-order response to heater/ambient
+T_junction -> first-order response to T_plate
+T_sensor   -> first-order response to T_junction
+```
+
+Each link uses the exact first-order factor `1 − exp(−Δt/τ)`. The synthetic sensor series adds
+seeded Gaussian noise. The S6 page reports the configured time constants and a lag estimate from
+the latent junction/sensor series. UKF/RTS smoothing, the GP discrepancy, DMDc and the Kalman
+marginal likelihood remain Phase 4 work and must not be claimed by this slice.
+
 ## 7. Identifiability
 
 `E_g`, `ln B` and `η` are nearly collinear over the lab's 60–100 K window around room temperature. The Fisher spectrum (design §3.1) quantifies this; the app's job is to show it rather than to hide it behind a straight-line fit. Any claim that a wider temperature range would "fix" the gap must be demonstrated with the temperature-range slider before it appears in copy.

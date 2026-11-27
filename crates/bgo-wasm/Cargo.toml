@@ -29,4 +29,5 @@ bgo-info = { workspace = true }
 bgo-nn = { path = "../bgo-nn" }
 bgo-ot = { workspace = true }
 bgo-physics = { workspace = true }
+bgo-ssm = { workspace = true }
 wasm-bindgen = "0.2"

@@ -11,6 +11,7 @@ import type {
   Response,
   SamplerResult,
   SvgdComparisonResult,
+  ThermalTwinResult,
 } from './protocol';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
@@ -179,6 +180,34 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             value.livePositions.buffer as ArrayBuffer,
             value.priorLow.buffer as ArrayBuffer,
             value.priorHigh.buffer as ArrayBuffer,
+          ]);
+        } finally {
+          output.free();
+        }
+        break;
+      }
+      case 'thermal': {
+        const output = module.run_thermal_twin(request.seed);
+        try {
+          const value: ThermalTwinResult = {
+            timeS: output.time_s,
+            plateK: output.plate_k,
+            junctionK: output.junction_k,
+            sensorK: output.sensor_k,
+            observedK: output.observed_k,
+            sampleCount: output.sample_count,
+            lagTauS: output.lag_tau_s,
+            trueTauS: output.true_tau_s,
+            maxLagK: output.max_lag_k,
+            ambientK: output.ambient_k,
+            heaterK: output.heater_k,
+          };
+          reply({ id: request.id, ok: true, kind: 'thermal', value }, [
+            value.timeS.buffer as ArrayBuffer,
+            value.plateK.buffer as ArrayBuffer,
+            value.junctionK.buffer as ArrayBuffer,
+            value.sensorK.buffer as ArrayBuffer,
+            value.observedK.buffer as ArrayBuffer,
           ]);
         } finally {
           output.free();

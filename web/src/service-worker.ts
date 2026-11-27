@@ -5,9 +5,14 @@ import { version } from '$app/env';
 const worker = self as unknown as ServiceWorkerGlobalScope;
 const cacheName = `bgo-${version}`;
 const entries = [...immutable, ...assets, ...prerendered] as Array<string | { path?: string }>;
-const precache = entries
-  .map((entry) => (typeof entry === 'string' ? entry : entry.path))
-  .filter((path): path is string => Boolean(path));
+const precache = [
+  ...new Set(
+    entries
+      .map((entry) => (typeof entry === 'string' ? entry : entry.path))
+      .filter((path): path is string => Boolean(path))
+      .filter((path) => !path.split('/').some((segment) => segment.startsWith('.'))),
+  ),
+];
 const offlineFallback = new URL('404.html', worker.location.href).href;
 
 worker.addEventListener('install', (event) => {
@@ -41,7 +46,7 @@ worker.addEventListener('fetch', (event) => {
   if (url.origin !== worker.location.origin) return;
 
   event.respondWith(
-    caches.match(request).then((cached) => {
+    caches.match(request, { ignoreVary: true }).then((cached) => {
       if (cached) return cached;
       return fetch(request)
         .then((response) => {
@@ -52,7 +57,7 @@ worker.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() =>
-          caches.match(offlineFallback).then((fallback) => fallback ?? Response.error()),
+          caches.match(offlineFallback, { ignoreVary: true }).then((fallback) => fallback ?? Response.error()),
         );
     }),
   );

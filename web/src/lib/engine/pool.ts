@@ -13,6 +13,7 @@ import type {
   SamplerResult,
   SvgdComparisonRequest,
   SvgdComparisonResult,
+  ThermalTwinResult,
 } from './protocol';
 
 export interface EngineSuccess {
@@ -26,7 +27,8 @@ export interface EngineSuccess {
     | FisherResult
     | NestedTraceResult
     | NpeResult
-    | SvgdComparisonResult;
+    | SvgdComparisonResult
+    | ThermalTwinResult;
 }
 
 export interface EngineFailure {
@@ -201,6 +203,10 @@ export class EnginePool {
 
   nestedEvidence(livePoints: number, seed: number, timeoutMs = 120_000) {
     return this.#send({ kind: 'nested', livePoints, seed }, timeoutMs);
+  }
+
+  thermalTwin(seed: number, timeoutMs = 10_000) {
+    return this.#send({ kind: 'thermal', seed }, timeoutMs);
   }
 
   npe(request: NpeRequest, timeoutMs = 10_000) {
