@@ -9,6 +9,11 @@
 - S6 UKF/RTS state estimate with uncertainty band and fixed-hyperparameter GP residual diagnostic.
 - Offline-navigation Playwright coverage for the PWA service worker.
 
+### Fixed
+
+- Pin `@playwright/test` to 1.64.1 so the e2e suite stops hitting the Firefox 1572 content-process crash that follows an axe scan.
+- Guided-story keyboard test no longer races hydration before pressing an arrow key.
+
 ## v0.1.0 — 2026-11-26
 
 Phase 3 MVP: a calibrated local neural posterior, the Rust flow engine, an offline PWA shell and a guided story.

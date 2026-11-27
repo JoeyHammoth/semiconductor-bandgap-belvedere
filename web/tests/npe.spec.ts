@@ -26,8 +26,14 @@ test('NPE page has no serious accessibility violations', async ({ page }) => {
 test('story is keyboard operable', async ({ page }) => {
   await page.goto('story/');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('line');
-  await page.keyboard.press('ArrowRight');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('posterior');
+  // The arrow handler is attached on hydration, which can land after the first
+  // paint. Press again until the client has taken over instead of racing it.
+  await expect
+    .poll(async () => {
+      await page.keyboard.press('ArrowRight');
+      return page.getByRole('heading', { level: 1 }).textContent();
+    })
+    .toContain('posterior');
   await page.keyboard.press('ArrowLeft');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('line');
 });
