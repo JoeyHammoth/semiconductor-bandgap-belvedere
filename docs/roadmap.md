@@ -44,7 +44,8 @@ Eight phases, each with acceptance criteria recorded as a GitHub epic. Milestone
 | Fixed-hyperparameter GP residual diagnostic | [#5](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/5) |
 | Kalman marginal likelihood on the synthetic sensor trace | [#5](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/5) |
 | Hankel-DMDc time constants from the delay-embedded trace | [#5](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/5) |
-| State-space GP discrepancy and Matern-SDE latent state | planned under #5 |
+| Multi-pulse heater schedule for DMDc conditioning | [#5](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/5) |
+| State-space GP discrepancy as a Matern-3/2 SDE latent state | [#5](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/5) |
 
 ## Sequencing rules
 

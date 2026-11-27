@@ -229,16 +229,18 @@
     <h1>Where the sensor lags the junction</h1>
     <p class="lede">
       The plate heats, the diode junction follows, and the sensor follows more slowly. The first
-      slice of the M5 thermal model is a deterministic three-state chain, followed by a UKF/RTS
-      state estimate of the hidden junction and a GP residual discrepancy.
+      slice of the M5 thermal model is a deterministic three-state chain driven by a three-pulse
+      heater schedule, followed by a UKF/RTS state estimate of the hidden junction, a GP residual
+      diagnostic and a Matérn-3/2 latent discrepancy.
     </p>
 
     <section class="run panel" aria-labelledby="run-title">
       <div>
         <h2 id="run-title">Run the thermal twin</h2>
         <p class="caveat">
-          Synthetic only. This is not the lost lab trace; the GP uses fixed RBF hyperparameters as
-          a diagnostic, not a calibrated physical discrepancy model.
+          Synthetic only. This is not the lost lab trace; the GP uses fixed RBF hyperparameters and
+          the Matérn discrepancy a fixed length scale and signal scale, both as diagnostics rather
+          than calibrated physical models.
         </p>
       </div>
       <button type="button" onclick={run} disabled={running} data-testid="thermal-run">
@@ -288,6 +290,10 @@
             <span class="label">GP residual RMS</span>
             <strong class="tabular">{result.gpRmsK.toFixed(3)} K</strong>
           </p>
+          <p data-testid="thermal-matern">
+            <span class="label">Matérn discrepancy RMS</span>
+            <strong class="tabular">{result.maternRmsK.toFixed(4)} K</strong>
+          </p>
           <p data-testid="thermal-likelihood">
             <span class="label">Kalman log-likelihood</span>
             <strong class="tabular">{result.kalmanLogLikelihood.toFixed(1)}</strong>
@@ -331,13 +337,16 @@
           <span class="tabular">+{result.heaterK.toFixed(1)} K</span>. The lag estimate uses the
           first-order relation between the latent junction and sensor series. The UKF runs on the
           noisy sensor only; RTS smoothing uses the full trace. Sensor RMSE is
-          <span class="tabular">{result.sensorRmseK.toFixed(3)} K</span>. Hankel-DMDc on the
-          observed series fits a fourth-order companion model and reports the three distinct modes
-          within <span class="tabular">{(result.dmdMaxRelativeError * 100).toFixed(1)}%</span> of
-          the chain constants (fit residual
-          <span class="tabular">{(result.dmdRelativeResidual * 100).toFixed(1)}%</span>); a single
-          heater step leaves the fastest mode only weakly excited, so this is a diagnostic, not an
-          identification claim.
+          <span class="tabular">{result.sensorRmseK.toFixed(3)} K</span>, and the post-smoother
+          residual as a two-state Matérn-3/2 SDE has an RMS of
+          <span class="tabular">{result.maternRmsK.toFixed(4)} K</span>. Hankel-DMDc on the
+          observed series fits a fourth-order companion model to the three-pulse schedule and
+          reports the three distinct modes within
+          <span class="tabular">{(result.dmdMaxRelativeError * 100).toFixed(1)}%</span> of the chain
+          constants (fit residual
+          <span class="tabular">{(result.dmdRelativeResidual * 100).toFixed(1)}%</span>); the
+          fastest pole reads a few seconds long because sensor noise whitens it, so this is a
+          diagnostic, not an identification claim.
         </p>
       </section>
     {/if}
@@ -350,8 +359,8 @@
         the full trace. The GP is fitted to the post-smoother residual with fixed RBF
         hyperparameters. The Kalman marginal likelihood is the filter's own predictive
         log-density, not a model-evidence estimate. Hankel-DMDc reports damping constants from a
-        delay embedding. A learned discrepancy model and a Matérn-SDE latent state remain future
-        work.
+        delay embedding. The Matérn-3/2 discrepancy is carried as a two-state latent SDE with fixed
+        hyperparameters, so it is a stated prior on the residual rather than a learned model.
       </p>
     </section>
   </main>

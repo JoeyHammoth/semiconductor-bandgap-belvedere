@@ -3,6 +3,9 @@
 - Status: accepted
 - Date: 2026-11-28
 - Supersedes the "future work" note in [ADR 0009](0009-ukf-rts-gp-residual.md)
+- Superseded in part by [ADR 0011](0011-multi-pulse-schedule-and-matern-state.md), which replaces
+  the single heater step with a three-pulse schedule and makes the control terms part of the DMDc
+  fit residual
 
 ## Context
 
@@ -48,8 +51,9 @@ Hankel state of the observed sensor and `u` is the known heater target:
   constants, together with the fit residual and the maximum relative error. Disagreement is
   displayed, not hidden.
 - The single heater step excites the plate strongly and the fastest mode weakly. The recovered
-  constants land within roughly 15% of the chain's values; the unit test pins a 20% bound rather
-  than pretending to a tighter identification.
+  constants land within roughly 15% of the chain's values; the unit test pinned a 20% bound rather
+  than pretending to a tighter identification. ADR 0011 later replaced the single step with a
+  three-pulse schedule and tightened the bound to 18%.
 - Fitting the RTS-smoothed sensor instead of the raw observation was tried and rejected: the
   smoother is model-based, so its estimate is over-smoothed and the modal fit is worse (and
   circular). The raw observed series is the input.

@@ -141,6 +141,10 @@ export interface ThermalTwinResult {
   rtsSdK: Float64Array;
   gpMeanK: Float64Array;
   gpSdK: Float64Array;
+  /** Post-smoother residual as a latent Matern-3/2 state. */
+  maternMeanK: Float64Array;
+  maternSdK: Float64Array;
+  maternRmsK: number;
   junctionRmseK: number;
   sensorRmseK: number;
   gpRmsK: number;
@@ -360,6 +364,9 @@ export interface WasmThermalTwinOutput {
   readonly rts_sd_k: Float64Array;
   readonly gp_mean_k: Float64Array;
   readonly gp_sd_k: Float64Array;
+  readonly matern_mean_k: Float64Array;
+  readonly matern_sd_k: Float64Array;
+  readonly matern_rms_k: number;
   readonly junction_rmse_k: number;
   readonly sensor_rmse_k: number;
   readonly gp_rms_k: number;

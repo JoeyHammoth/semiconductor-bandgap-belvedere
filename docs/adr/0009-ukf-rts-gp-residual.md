@@ -38,6 +38,6 @@ and the GP residual band, and includes them in the accessible table.
 - The GP hyperparameters are fixed and are not optimized against the data; the reported GP band is
   a diagnostic, not a calibrated uncertainty claim.
 - The Kalman marginal likelihood and Hankel-DMDc time constants landed in
-  [ADR 0010](0010-dmdc-and-marginal-likelihood.md); a state-space GP discrepancy remains future
-  Phase 4 work.
+  [ADR 0010](0010-dmdc-and-marginal-likelihood.md); the state-space GP discrepancy landed in
+  [ADR 0011](0011-multi-pulse-schedule-and-matern-state.md) as a Matérn-3/2 latent state.
 - No measured data is introduced and the synthetic labels remain mandatory.

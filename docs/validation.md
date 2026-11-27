@@ -83,7 +83,7 @@ Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff
 |---|---|---|---|
 | UKF matches analytic Kalman filter | linear Gaussian model | ≤ 1e-8 | pending |
 | RTS smoothing improves RMSE | simulated latent state | strictly lower RMSE | pending |
-| DMDc recovers simulated eigenvalues | known plant | ≤ 1% on |λ| | pending |
+| DMDc recovers simulated eigenvalues on a known plant with noiseless output | synthetic ARX fixture | ≤ 1% on |λ| | pending |
 | Si/Ge band edges match literature EPM | committed reference table | ≤ 0.1 eV, ordering exact | pending |
 | DOS is normalised and converged | k-point refinement | integral drift ≤ 1% | pending |
 
@@ -119,9 +119,11 @@ Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff
 | UKF/RTS recovers the latent junction from the noisy sensor | `cargo test -p bgo-ssm ukf::tests::smoother_recovers_the_latent_junction` | smoothed junction RMSE ≤ 0.1 K | verified (unit) |
 | GP residual diagnostic is finite and non-negative | `cargo test -p bgo-ssm ukf::tests::gp_discrepancy_is_finite` | finite mean, finite non-negative standard deviation | verified (unit) |
 | Kalman marginal likelihood responds to a noise mismatch | `cargo test -p bgo-ssm ukf::tests::marginal_likelihood_penalises_a_mismatched_noise_level` | matched-noise score exceeds a 10× tighter filter by more than 10 nats | verified (unit) |
-| Hankel-DMDc recovers the chain's damping constants | `cargo test -p bgo-ssm dmd::tests::recovers_the_chain_time_constants` | three distinct positive modes, maximum relative error ≤ 20% of the configured constants, fit residual ≤ 5% | verified (unit) |
+| Hankel-DMDc recovers the chain's damping constants | `cargo test -p bgo-ssm dmd::tests::recovers_the_chain_time_constants` | three distinct positive modes, maximum relative error ≤ 18% of the configured constants (observed 15.5%), fit residual ≤ 5% (observed 0.96%) | verified (unit) |
+| Matérn-3/2 SDE discretisation is exact | `cargo test -p bgo-ssm matern::tests::discretisation_keeps_the_stationary_covariance` | stationary covariance is a fixed point to ≤ 1e-12, zero-lag autocovariance equals `σ²` | verified (unit) |
+| Matérn-3/2 latent discrepancy recovers a smooth residual | `cargo test -p bgo-ssm matern::tests::smoother_recovers_a_smooth_residual` | smoothed RMSE ≤ 0.06 K on a 0.6 K sinusoid with 0.02 K noise | verified (unit) |
 | S6 runs the Rust thermal twin and exposes RTS/GP outputs | Playwright Chromium `/thermal/`; `data-testid="thermal"`, `thermal-smoother`, `thermal-gp`, table | finite recovered lag, RTS/GP metrics, plot and accessible table | verified (Chromium e2e + a11y) |
-| S6 shows the filtered likelihood and DMDc modes | Playwright `/thermal/`; `thermal-likelihood`, `thermal-modes` | finite log-likelihood and three time constants rendered next to the chain's constants | verified (Chromium e2e + a11y) |
+| S6 shows the filtered likelihood, the Matérn discrepancy and the DMDc modes | Playwright `/thermal/`; `thermal-likelihood`, `thermal-matern`, `thermal-modes` | finite log-likelihood, finite non-negative Matérn RMS and three time constants rendered next to the chain's constants | verified (Chromium e2e + a11y) |
 
 ## 8. How to run
 

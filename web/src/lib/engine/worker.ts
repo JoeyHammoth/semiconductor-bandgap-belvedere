@@ -200,6 +200,9 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             rtsSdK: output.rts_sd_k,
             gpMeanK: output.gp_mean_k,
             gpSdK: output.gp_sd_k,
+            maternMeanK: output.matern_mean_k,
+            maternSdK: output.matern_sd_k,
+            maternRmsK: output.matern_rms_k,
             junctionRmseK: output.junction_rmse_k,
             sensorRmseK: output.sensor_rmse_k,
             gpRmsK: output.gp_rms_k,
@@ -226,6 +229,8 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             value.rtsSdK.buffer as ArrayBuffer,
             value.gpMeanK.buffer as ArrayBuffer,
             value.gpSdK.buffer as ArrayBuffer,
+            value.maternMeanK.buffer as ArrayBuffer,
+            value.maternSdK.buffer as ArrayBuffer,
             value.dmdTauS.buffer as ArrayBuffer,
             value.dmdFrequencyRadS.buffer as ArrayBuffer,
           ]);

@@ -8,6 +8,8 @@
 - First Phase 4 thermal-twin slice: deterministic plate/junction/sensor chain, WASM export and `/thermal/` S6 scene.
 - S6 UKF/RTS state estimate with uncertainty band and fixed-hyperparameter GP residual diagnostic.
 - S6 Kalman marginal likelihood and Hankel-DMDc time constants, with the fit residual and the modal error against the chain's configured constants.
+- Three-pulse heater schedule shared by the forward twin, the UKF and DMDc; the slow and middle modal errors fall from 12–15% to 1–3%.
+- S6 Matérn-3/2 latent discrepancy: a two-state linear SDE with exact discretisation, Kalman filter and RTS smoother, replacing the "future work" note for a state-space GP.
 - Offline-navigation Playwright coverage for the PWA service worker.
 
 ### Fixed

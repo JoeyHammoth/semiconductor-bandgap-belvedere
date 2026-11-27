@@ -130,10 +130,19 @@ Each link uses the exact first-order factor `1 − exp(−Δt/τ)`. The syntheti
 seeded Gaussian noise. The S6 page reports the configured time constants and a lag estimate from
 the latent junction/sensor series.
 
+The heater follows an ordered schedule of on-intervals (`heat_pulses`), not a single step: 90 s at
+60 s, 300 s at 300 s and 720 s at 780 s of an 1800 s run at 10 s samples. The narrow first pulse
+puts energy at the sensor's own timescale and the long third pulse drives the plate towards steady
+state. Forward twin, filter and DMDc all read the same `heater_target_k`, and pulses must be
+ordered and non-overlapping.
+
 The same slice now runs a three-state UKF with state `[plate, junction, sensor]` and the noisy
 sensor as its only measurement, followed by an RTS smoother over the full trace. It also fits a
-Gaussian process with fixed RBF hyperparameters to the post-smoother sensor residual. The GP is a
-diagnostic, not a latent state or a learned discrepancy model.
+Gaussian process with fixed RBF hyperparameters to the post-smoother sensor residual. That GP is a
+diagnostic; the same residual is additionally carried as a latent Matérn-3/2 state — a two-state
+linear SDE with exact discretisation, a Kalman filter and an RTS smoother at fixed 180 s length
+scale and 0.20 K signal scale — so the discrepancy is a state of the model, not only a kernel fit
+([ADR 0011](adr/0011-multi-pulse-schedule-and-matern-state.md)).
 
 The filter also reports its own predictive log-likelihood: the sum of the Gaussian log densities of
 the observations under the unscented predicted measurement. That is the Kalman prediction-error
@@ -142,10 +151,11 @@ decomposition for the configured model and noise level, not evidence over parame
 A Hankel-DMDc fit identifies damping constants from the delay-embedded observed sensor and the
 known heater input: order 4, three control lags, QR least squares on the centred series, companion
 eigenvalues by Durand–Kerner, then `τ = −Δt / ln|λ|`. The three slowest distinct modes are shown
-with their fit residual and their maximum relative error against the chain's configured constants
-(about 15% for this single-step excitation). A state-space GP discrepancy and a Matern-SDE latent
-state remain Phase 4 work and are not claimed by this slice. See
-[ADR 0010](adr/0010-dmdc-and-marginal-likelihood.md).
+with their fit residual and their maximum relative error against the chain's configured constants:
+433/74/29 s against 420/75/25 s on the default seed, so the slow and middle poles land within a few
+percent and the fastest stays about 16% long because observation noise whitens it. The fit residual
+includes the control terms. See [ADR 0010](adr/0010-dmdc-and-marginal-likelihood.md) and
+[ADR 0011](adr/0011-multi-pulse-schedule-and-matern-state.md).
 
 ## 7. Identifiability
 

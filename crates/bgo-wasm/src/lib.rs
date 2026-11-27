@@ -1479,6 +1479,9 @@ pub struct ThermalTwinOutput {
     rts_sd_k: Vec<f64>,
     gp_mean_k: Vec<f64>,
     gp_sd_k: Vec<f64>,
+    matern_mean_k: Vec<f64>,
+    matern_sd_k: Vec<f64>,
+    matern_rms_k: f64,
     junction_rmse_k: f64,
     sensor_rmse_k: f64,
     gp_rms_k: f64,
@@ -1545,6 +1548,21 @@ impl ThermalTwinOutput {
     #[wasm_bindgen(getter)]
     pub fn gp_sd_k(&self) -> Vec<f64> {
         self.gp_sd_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn matern_mean_k(&self) -> Vec<f64> {
+        self.matern_mean_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn matern_sd_k(&self) -> Vec<f64> {
+        self.matern_sd_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn matern_rms_k(&self) -> f64 {
+        self.matern_rms_k
     }
 
     #[wasm_bindgen(getter)]
@@ -1638,6 +1656,9 @@ fn run_thermal_twin_impl(seed: u32) -> Result<ThermalTwinOutput, String> {
         rts_sd_k: estimate.smoothed_junction_sd_k,
         gp_mean_k: estimate.gp_mean_k,
         gp_sd_k: estimate.gp_sd_k,
+        matern_mean_k: estimate.matern_mean_k,
+        matern_sd_k: estimate.matern_sd_k,
+        matern_rms_k: estimate.matern_rms_k,
         junction_rmse_k: estimate.junction_rmse_k,
         sensor_rmse_k: estimate.sensor_rmse_k,
         gp_rms_k: estimate.gp_rms_k,
@@ -1818,6 +1839,9 @@ mod tests {
         assert_eq!(output.rts_junction_k().len(), 181);
         assert_eq!(output.rts_sd_k().len(), 181);
         assert_eq!(output.gp_sd_k().len(), 181);
+        assert_eq!(output.matern_mean_k().len(), 181);
+        assert_eq!(output.matern_sd_k().len(), 181);
+        assert!(output.matern_rms_k().is_finite() && output.matern_rms_k() >= 0.0);
         assert!(output.junction_rmse_k() < 0.1);
         assert!(output.gp_rms_k().is_finite());
         assert!(output.kalman_log_likelihood().is_finite());

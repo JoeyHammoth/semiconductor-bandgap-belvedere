@@ -11,7 +11,8 @@
 //! keeps the experiment transparent and avoids pretending the residual has a
 //! calibrated physical prior.
 
-use crate::thermal::{simulate_thermal, ThermalConfig, ThermalRun};
+use crate::matern::matern_discrepancy;
+use crate::thermal::{heater_target_k, simulate_thermal, ThermalConfig, ThermalRun};
 
 type Vec3 = [f64; 3];
 type Mat3 = [[f64; 3]; 3];
@@ -27,6 +28,11 @@ pub struct ThermalEstimate {
     pub junction_rmse_k: f64,
     pub sensor_rmse_k: f64,
     pub gp_rms_k: f64,
+    /// Post-smoother sensor residual under a Matérn-3/2 latent state: the
+    /// smoothed discrepancy mean and its standard deviation.
+    pub matern_mean_k: Vec<f64>,
+    pub matern_sd_k: Vec<f64>,
+    pub matern_rms_k: f64,
     /// Gaussian log-likelihood of the observations under the filter's own
     /// predictive distribution (the Kalman prediction-error decomposition).
     pub log_likelihood: f64,
@@ -34,13 +40,10 @@ pub struct ThermalEstimate {
 
 #[derive(Debug, Clone, Copy)]
 struct Dynamics {
+    config: ThermalConfig,
     plate_alpha: f64,
     junction_alpha: f64,
     sensor_alpha: f64,
-    ambient_k: f64,
-    heater_k: f64,
-    heat_start_s: f64,
-    heat_stop_s: f64,
     sample_s: f64,
 }
 
@@ -48,25 +51,17 @@ impl Dynamics {
     fn new(config: &ThermalConfig) -> Self {
         let dt = config.sample_s;
         Self {
+            config: *config,
             plate_alpha: 1.0 - (-dt / config.tau_plate_s).exp(),
             junction_alpha: 1.0 - (-dt / config.tau_junction_s).exp(),
             sensor_alpha: 1.0 - (-dt / config.tau_sensor_s).exp(),
-            ambient_k: config.ambient_k,
-            heater_k: config.heater_k,
-            heat_start_s: config.heat_start_s,
-            heat_stop_s: config.heat_stop_s,
             sample_s: dt,
         }
     }
 
     fn step(&self, state: Vec3, index: usize) -> Vec3 {
         let time = index as f64 * self.sample_s;
-        let target = self.ambient_k
-            + if time >= self.heat_start_s && time < self.heat_stop_s {
-                self.heater_k
-            } else {
-                0.0
-            };
+        let target = self.config.ambient_k + heater_target_k(&self.config, time);
         let plate = state[0] + (target - state[0]) * self.plate_alpha;
         let junction = state[1] + (plate - state[1]) * self.junction_alpha;
         let sensor = state[2] + (junction - state[2]) * self.sensor_alpha;
@@ -161,10 +156,24 @@ pub fn smooth_thermal(config: &ThermalConfig, run: &ThermalRun) -> Result<Therma
         config.sensor_noise_k.max(1.0e-3),
     )?;
 
+    // The same residual, now modelled as a latent Matérn-3/2 state instead of
+    // an RBF kernel: fixed length scale and signal scale, filtered and smoothed
+    // exactly, so the discrepancy is a state of the model rather than a fit.
+    let matern = matern_discrepancy(
+        &run.time_s,
+        &residual,
+        180.0,
+        0.20,
+        config.sensor_noise_k.max(1.0e-3),
+    )?;
+
     let junction_rmse_k = rmse(&smoothed_junction_k, &run.junction_k);
     let sensor_rmse_k = rmse(&smoothed_sensor_k, observed);
     let gp_rms_k =
         (gp_mean_k.iter().map(|value| value * value).sum::<f64>() / gp_mean_k.len() as f64).sqrt();
+    let matern_rms_k = (matern.mean_k.iter().map(|value| value * value).sum::<f64>()
+        / matern.mean_k.len() as f64)
+        .sqrt();
 
     Ok(ThermalEstimate {
         filtered_junction_k,
@@ -176,6 +185,9 @@ pub fn smooth_thermal(config: &ThermalConfig, run: &ThermalRun) -> Result<Therma
         junction_rmse_k,
         sensor_rmse_k,
         gp_rms_k,
+        matern_mean_k: matern.mean_k,
+        matern_sd_k: matern.sd_k,
+        matern_rms_k,
         log_likelihood: marginal_log_likelihood,
     })
 }
@@ -590,6 +602,25 @@ mod tests {
             matched.log_likelihood,
             mismatched.log_likelihood
         );
+    }
+
+    #[test]
+    fn matern_state_is_finite_and_bounded_by_the_signal_scale() {
+        let config = ThermalConfig::default();
+        let estimate = estimate_thermal(&config).expect("thermal estimate");
+        assert_eq!(
+            estimate.matern_mean_k.len(),
+            estimate.smoothed_sensor_k.len()
+        );
+        assert!(estimate.matern_rms_k.is_finite());
+        assert!(estimate
+            .matern_mean_k
+            .iter()
+            .all(|value| value.is_finite() && value.abs() <= 0.2 * 3.0));
+        assert!(estimate
+            .matern_sd_k
+            .iter()
+            .all(|value| value.is_finite() && *value >= 0.0));
     }
 
     #[test]

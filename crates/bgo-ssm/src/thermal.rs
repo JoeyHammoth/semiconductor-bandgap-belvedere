@@ -12,13 +12,36 @@
 
 use std::f64::consts::PI;
 
+/// Heater-on intervals in the identification schedule.
+pub const HEAT_PULSES: usize = 3;
+
+/// One heater-on interval, in seconds from the start of the run.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HeatPulse {
+    pub start_s: f64,
+    pub stop_s: f64,
+}
+
+impl HeatPulse {
+    const fn new(start_s: f64, stop_s: f64) -> Self {
+        Self { start_s, stop_s }
+    }
+
+    /// The stop edge is exclusive, so adjacent pulses do not double up.
+    fn is_on(&self, time_s: f64) -> bool {
+        time_s >= self.start_s && time_s < self.stop_s
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ThermalConfig {
     pub ambient_k: f64,
     pub initial_k: f64,
     pub heater_k: f64,
-    pub heat_start_s: f64,
-    pub heat_stop_s: f64,
+    /// Heater-on intervals, in seconds. Three pulses of increasing width give
+    /// the fast, middle and slow chain modes their own step edges, which is
+    /// what conditions the Hankel-DMDc regression.
+    pub heat_pulses: [HeatPulse; HEAT_PULSES],
     /// Total simulated time. The final sample is at or just before this value.
     pub duration_s: f64,
     pub sample_s: f64,
@@ -35,8 +58,11 @@ impl Default for ThermalConfig {
             ambient_k: 293.15,
             initial_k: 293.15,
             heater_k: 25.0,
-            heat_start_s: 120.0,
-            heat_stop_s: 900.0,
+            heat_pulses: [
+                HeatPulse::new(60.0, 150.0),
+                HeatPulse::new(300.0, 600.0),
+                HeatPulse::new(780.0, 1_500.0),
+            ],
             duration_s: 1_800.0,
             sample_s: 10.0,
             tau_plate_s: 420.0,
@@ -61,6 +87,17 @@ pub struct ThermalRun {
     pub max_lag_k: f64,
     pub ambient_k: f64,
     pub heater_k: f64,
+    /// Heater-on intervals used by the run, in seconds.
+    pub heat_pulses: [HeatPulse; HEAT_PULSES],
+}
+
+/// Heater target at `time_s`, in kelvin above ambient.
+pub fn heater_target_k(config: &ThermalConfig, time_s: f64) -> f64 {
+    if config.heat_pulses.iter().any(|pulse| pulse.is_on(time_s)) {
+        config.heater_k
+    } else {
+        0.0
+    }
 }
 
 pub fn simulate_thermal(config: &ThermalConfig) -> Result<ThermalRun, String> {
@@ -86,8 +123,7 @@ pub fn simulate_thermal(config: &ThermalConfig) -> Result<ThermalRun, String> {
     for index in 0..steps {
         let time = index as f64 * dt;
         if index > 0 {
-            let heater_on = time >= config.heat_start_s && time < config.heat_stop_s;
-            let target = config.ambient_k + if heater_on { config.heater_k } else { 0.0 };
+            let target = config.ambient_k + heater_target_k(config, time);
             plate += (target - plate) * plate_alpha;
             junction += (plate - junction) * junction_alpha;
             sensor += (junction - sensor) * sensor_alpha;
@@ -118,6 +154,7 @@ pub fn simulate_thermal(config: &ThermalConfig) -> Result<ThermalRun, String> {
         max_lag_k,
         ambient_k: config.ambient_k,
         heater_k: config.heater_k,
+        heat_pulses: config.heat_pulses,
     })
 }
 
@@ -126,8 +163,6 @@ fn validate(config: &ThermalConfig) -> Result<(), String> {
         ("ambient", config.ambient_k),
         ("initial", config.initial_k),
         ("heater", config.heater_k),
-        ("heat start", config.heat_start_s),
-        ("heat stop", config.heat_stop_s),
         ("duration", config.duration_s),
         ("sample", config.sample_s),
         ("plate tau", config.tau_plate_s),
@@ -146,10 +181,19 @@ fn validate(config: &ThermalConfig) -> Result<(), String> {
         || config.tau_junction_s <= 0.0
         || config.tau_sensor_s <= 0.0
         || config.sensor_noise_k < 0.0
-        || config.heat_start_s < 0.0
-        || config.heat_stop_s < config.heat_start_s
     {
         return Err("thermal config is outside its physical domain".into());
+    }
+    for (index, pulse) in config.heat_pulses.iter().enumerate() {
+        if !pulse.start_s.is_finite() || !pulse.stop_s.is_finite() {
+            return Err(format!("heat pulse {index} must be finite"));
+        }
+        if pulse.start_s < 0.0 || pulse.stop_s < pulse.start_s {
+            return Err(format!("heat pulse {index} is outside its physical domain"));
+        }
+        if index > 0 && pulse.start_s < config.heat_pulses[index - 1].stop_s {
+            return Err("heat pulses must be ordered and non-overlapping".into());
+        }
     }
     Ok(())
 }

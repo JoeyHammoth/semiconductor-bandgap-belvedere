@@ -8,10 +8,12 @@
 //! discrete eigenvalues into damping time constants and angular frequencies.
 //!
 //! The estimate is a diagnostic, not a tuned model: it uses the noisy synthetic
-//! observation, a fixed embedding depth of three (matching the three-state
-//! chain) and no model-selection search.
+//! observation, a fixed embedding depth of four (matching the three-state
+//! chain) and no model-selection search. The identification trace is driven by
+//! the configured multi-pulse heater schedule, whose narrow first pulse gives
+//! the fast sensor mode its own step edge.
 
-use crate::thermal::ThermalConfig;
+use crate::thermal::{heater_target_k, ThermalConfig};
 
 /// States in the forward chain; that many modes are reported.
 const STATES: usize = 3;
@@ -145,7 +147,7 @@ fn fit_modes(
         .fold(0.0_f64, f64::max);
 
     Ok(ThermalModes {
-        relative_residual: relative_residual(order, control_lags, &solution, &centred),
+        relative_residual: relative_residual(config, order, control_lags, &solution, &centred),
         time_constants_s,
         frequencies_rad_s,
         true_time_constants_s,
@@ -156,22 +158,29 @@ fn fit_modes(
 
 /// Heater target at a sample index, in kelvin above ambient.
 fn heater_target(config: &ThermalConfig, index: usize) -> f64 {
-    let time = index as f64 * config.sample_s;
-    if time >= config.heat_start_s && time < config.heat_stop_s {
-        config.heater_k
-    } else {
-        0.0
-    }
+    heater_target_k(config, index as f64 * config.sample_s)
 }
 
 /// One-step prediction residual of the fitted model, relative to the signal.
-fn relative_residual(order: usize, control_lags: usize, solution: &[f64], observed: &[f64]) -> f64 {
+/// The control terms belong to the fitted model, so they are included here;
+/// omitting them would report the residual of the autoregression alone.
+fn relative_residual(
+    config: &ThermalConfig,
+    order: usize,
+    control_lags: usize,
+    solution: &[f64],
+    observed: &[f64],
+) -> f64 {
     let mut residual_energy = 0.0;
     let mut signal_energy = 0.0;
-    for index in (order - 1)..(observed.len() - 1) {
+    let start = order.max(control_lags) - 1;
+    for index in start..(observed.len() - 1) {
         let mut prediction = solution[order + control_lags];
         for lag in 0..order {
             prediction += solution[lag] * observed[index - lag];
+        }
+        for lag in 0..control_lags {
+            prediction += solution[order + lag] * heater_target(config, index - lag);
         }
         let target = observed[index + 1];
         residual_energy += (target - prediction).powi(2);
@@ -366,11 +375,11 @@ mod tests {
             .time_constants_s
             .iter()
             .all(|tau| tau.is_finite() && *tau > 0.0));
-        // A single heater step excites the plate strongly and the fast sensor
-        // mode weakly, so the modal estimate is a diagnostic rather than an
-        // identification claim.
+        // The three-pulse schedule conditions the slow and middle poles to a
+        // few percent; measurement noise still whitens the fastest pole, so the
+        // estimate stays a diagnostic rather than an identification claim.
         assert!(
-            modes.max_relative_error < 0.20,
+            modes.max_relative_error < 0.18,
             "modes {:?} vs true {:?}",
             modes.time_constants_s,
             modes.true_time_constants_s
