@@ -6,7 +6,7 @@
 [![deploy](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/actions/workflows/deploy.yml/badge.svg)](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/actions/workflows/deploy.yml)
 [![licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
-**Live:** https://joeyhammoth.github.io/semiconductor-bandgap-belvedere/ — Phase 4 in progress: the local calibrated neural posterior and offline PWA plus the first thermal-twin slice. The original recordings no longer exist; the site uses labelled literature parameters and the report's published summary. No measured dataset is published.
+**Live:** https://joeyhammoth.github.io/semiconductor-bandgap-belvedere/ — Phase 4 in progress: the local calibrated neural posterior, offline PWA, and a synthetic thermal twin with UKF/RTS smoothing and a GP residual diagnostic. The original recordings no longer exist; the site uses labelled literature parameters and the report's published summary. No measured dataset is published.
 
 ## The question
 
@@ -109,7 +109,7 @@ Nothing ships on trust. Each claim has a test, a tolerance and a committed artif
 | Fisher inverse matches the M0 posterior covariance | verified (integration; max 2.3% sd) |
 | S2/S4 run in the browser; ledger reports LOO diagnostics honestly | verified (Chromium e2e + committed synthetic artifact) |
 | Local synthetic M0 neural posterior passes SBC, TARP and OOD | verified (p 0.936/0.998, TARP 0.021, OOD TPR 1.00) |
-| First thermal-twin slice recovers the sensor lag | verified (Rust unit + Chromium S6) |
+| Thermal twin recovers the sensor lag; UKF/RTS and GP outputs are finite | verified (Rust unit + Chromium S6) |
 | Accessibility and size budgets enforced in CI | verified (CI) |
 
 Status values are honest: **pending** means the test does not exist yet; **unavailable** means the input needed to make the claim no longer exists.

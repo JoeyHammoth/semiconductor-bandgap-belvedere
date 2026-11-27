@@ -32,8 +32,8 @@ true lag, and includes an accessible table.
 
 ## Consequences
 
-- The first S6 scene has a reference model that later UKF/RTS and DMDc work can be tested against.
-- The page states that this is not yet the UKF/RTS, GP-discrepancy or DMDc stage.
+- The first S6 scene has a reference model that the UKF/RTS and GP diagnostic now use (ADR 0009).
+- DMDc and the Kalman marginal likelihood remain future work; the GP in ADR 0009 is a residual diagnostic, not a state-space discrepancy.
 - The lag estimate is data-derived from the synthetic series, but it uses the latent junction state;
   it is not a claim that the real experiment can observe the junction directly.
 - No measured data is introduced.

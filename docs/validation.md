@@ -50,7 +50,7 @@ Phase 1 validation is simulation-only. The original recordings were lost (ADR 00
 
 The S5 NPE is a **local, report-anchored M0 amortised model**, not a calibrated surrogate for the full broad M0 prior. Its committed SBC/TARP/OOD report only certifies the local prior box `E_g ∈ [0.90, 1.10] eV`, `ln B ∈ [4.5, 6.5]`; outside it the OOD gate must reject the input. This limitation is visible on the page and is not hidden by the calibration badge.
 
-A full-prior retrain was attempted on 2026-11-26 with the MCLMC prior (`E_g ∈ [0.05, 3.5]`, `ln B ~ Normal(8, 8)` clipped to `[−30, 30]`), 80,000 simulations and 12,000 steps. It **failed** the gate: SBC p-values were 0.054 and 3.6e-11, TARP passed at 0.023, and OOD TPR was 0.00. Those artifacts were not committed; the local verified model remains the shipped NPE. The experiment is recorded here so the broad-prior claim is not resurrected by a weaker test.
+A full-prior retrain was attempted on 2026-11-26 with the MCLMC prior (`E_g ∈ [0.05, 3.5]`, `ln B ~ Normal(8, 8)` clipped to `[−30, 30]`), 80,000 simulations and 12,000 steps. It **failed** the gate: SBC p-values were 0.054 and 3.6e-11, TARP passed at 0.023, and OOD TPR was 0.00. A second retry on 2026-11-27 used a 6-layer rational-quadratic spline flow (80,000 simulations, 8,000 steps, 59,250 weights); it also failed, with SBC p-values 3.3e-50 and 6.6e-10, TARP 0.023, and OOD TPR 0.00. Neither artifact was committed; the local verified model remains the shipped NPE. The experiments are recorded here so the broad-prior claim is not resurrected by a weaker test.
 
 Nested sampling replaces a live point with a draw from the **uniform prior restricted to the likelihood threshold**, not from the likelihood-weighted posterior. The fixed-threshold tests check that this draw preserves uniform constrained means; the integration test checks the closed-form 2D Gaussian, the committed dynesty run and replicate scatter together.
 
@@ -116,7 +116,9 @@ Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff
 | PWA manifest and service worker are served | Playwright `/`; manifest link and `navigator.serviceWorker`; production build | manifest 200, worker registered under the configured base path | verified (Chromium e2e) |
 | PWA serves an offline navigation after activation | Playwright Chromium: wait for `serviceWorker.ready` and an active controller, `context.setOffline(true)`, open `/thermal/` | cached S6 heading and run control render with the network disabled | verified (Chromium e2e) |
 | Thermal chain recovers the configured sensor lag | `cargo test -p bgo-ssm thermal::recovers_the_sensor_time_constant` | relative error ≤ 2% | verified (unit) |
-| S6 runs the Rust thermal twin and exposes an accessible trace | Playwright Chromium `/thermal/`; `data-testid="thermal"`, `thermal-lag`, table | finite recovered lag, plot and accessible table | verified (Chromium e2e + a11y) |
+| UKF/RTS recovers the latent junction from the noisy sensor | `cargo test -p bgo-ssm ukf::tests::smoother_recovers_the_latent_junction` | smoothed junction RMSE ≤ 0.1 K | verified (unit) |
+| GP residual diagnostic is finite and non-negative | `cargo test -p bgo-ssm ukf::tests::gp_discrepancy_is_finite` | finite mean, finite non-negative standard deviation | verified (unit) |
+| S6 runs the Rust thermal twin and exposes RTS/GP outputs | Playwright Chromium `/thermal/`; `data-testid="thermal"`, `thermal-smoother`, `thermal-gp`, table | finite recovered lag, RTS/GP metrics, plot and accessible table | verified (Chromium e2e + a11y) |
 
 ## 8. How to run
 

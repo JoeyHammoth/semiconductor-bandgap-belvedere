@@ -23,6 +23,8 @@
             junction: result!.junctionK[point],
             sensor: result!.sensorK[point],
             observed: result!.observedK[point],
+            rts: result!.rtsJunctionK[point],
+            gp: result!.gpMeanK[point],
           };
         })
       : [],
@@ -83,11 +85,18 @@
     const accent = styles.getPropertyValue('--accent').trim() || 'CanvasText';
     const hair = styles.getPropertyValue('--hair').trim() || 'CanvasText';
     const sensorColour = 'oklch(0.82 0.15 40)';
+    const smootherColour = 'oklch(0.72 0.12 260)';
 
     const margin = { left: 58, right: 18, top: 24, bottom: 48 };
     const plotWidth = width - margin.left - margin.right;
     const plotHeight = height - margin.top - margin.bottom;
-    const values = [...result.plateK, ...result.junctionK, ...result.sensorK, ...result.observedK];
+    const values = [
+      ...result.plateK,
+      ...result.junctionK,
+      ...result.sensorK,
+      ...result.observedK,
+      ...result.rtsJunctionK,
+    ];
     const low = Math.min(...values) - 0.5;
     const high = Math.max(...values) + 0.5;
     const xMax = result.timeS[result.sampleCount - 1] || 1;
@@ -128,9 +137,36 @@
       context.stroke();
       context.globalAlpha = 1;
     };
+    const band = (centre: Float64Array, spread: Float64Array, colour: string, alpha: number) => {
+      context.beginPath();
+      for (let index = 0; index < result!.sampleCount; index += 1) {
+        const x = px(result!.timeS[index]);
+        const y = py(centre[index] + spread[index]);
+        if (index === 0) context.moveTo(x, y);
+        else context.lineTo(x, y);
+      }
+      for (let index = result!.sampleCount - 1; index >= 0; index -= 1) {
+        context.lineTo(
+          px(result!.timeS[index]),
+          py(centre[index] - spread[index]),
+        );
+      }
+      context.closePath();
+      context.fillStyle = colour;
+      context.globalAlpha = alpha;
+      context.fill();
+      context.globalAlpha = 1;
+    };
+    const gpCentre = result.sensorK.map((value, index) => value + result!.gpMeanK[index]);
+    band(result.rtsJunctionK, result.rtsSdK, smootherColour, 0.12);
+    band(gpCentre, result.gpSdK, sensorColour, 0.08);
     line(result.plateK, dim, 1.25, 0.75);
     line(result.junctionK, accent, 2);
     line(result.sensorK, sensorColour, 1.5);
+    context.save();
+    context.setLineDash([6, 4]);
+    line(result.rtsJunctionK, smootherColour, 1.6, 0.95);
+    context.restore();
 
     context.fillStyle = sensorColour;
     for (let index = 0; index < result.sampleCount; index += 4) {
@@ -193,16 +229,16 @@
     <h1>Where the sensor lags the junction</h1>
     <p class="lede">
       The plate heats, the diode junction follows, and the sensor follows more slowly. The first
-      slice of the M5 thermal model is a deterministic three-state chain; the recovered sensor time
-      constant is computed from the synthetic series, not assumed by the chart.
+      slice of the M5 thermal model is a deterministic three-state chain, followed by a UKF/RTS
+      state estimate of the hidden junction and a GP residual discrepancy.
     </p>
 
     <section class="run panel" aria-labelledby="run-title">
       <div>
         <h2 id="run-title">Run the thermal twin</h2>
         <p class="caveat">
-          Synthetic only. This is not the lost lab trace, and it is not yet the UKF/RTS or DMDc
-          stage.
+          Synthetic only. This is not the lost lab trace; the GP uses fixed RBF hyperparameters as
+          a diagnostic, not a calibrated physical discrepancy model.
         </p>
       </div>
       <button type="button" onclick={run} disabled={running} data-testid="thermal-run">
@@ -222,8 +258,9 @@
         <figure class="plot">
           <canvas bind:this={canvas} data-testid="thermal-plot" aria-hidden="true"></canvas>
           <figcaption>
-            Thin dim line: plate. Accent line: latent junction. Orange line: sensor. Dots: the
-            noisy synthetic sensor observations.
+            Thin dim line: plate. Accent line: latent junction. Orange line: sensor. Dots: noisy
+            synthetic observations. Dashed blue: RTS-smoothed junction. Bands: RTS 1σ around the
+            junction and the GP residual 1σ around the sensor.
           </figcaption>
         </figure>
         <div class="metrics">
@@ -243,6 +280,14 @@
             <span class="label">Peak junction−sensor</span>
             <strong class="tabular">{result.maxLagK.toFixed(2)} K</strong>
           </p>
+          <p data-testid="thermal-smoother">
+            <span class="label">RTS junction RMSE</span>
+            <strong class="tabular">{result.junctionRmseK.toFixed(3)} K</strong>
+          </p>
+          <p data-testid="thermal-gp">
+            <span class="label">GP residual RMS</span>
+            <strong class="tabular">{result.gpRmsK.toFixed(3)} K</strong>
+          </p>
         </div>
         <table class="trace-table" data-testid="thermal-table">
           <caption>S6 accessible equivalent: synthetic thermal state every 200 s</caption>
@@ -253,6 +298,8 @@
               <th scope="col">Junction (K)</th>
               <th scope="col">Sensor (K)</th>
               <th scope="col">Observed (K)</th>
+              <th scope="col">RTS junction (K)</th>
+              <th scope="col">GP mean (K)</th>
             </tr>
           </thead>
           <tbody>
@@ -263,6 +310,8 @@
                 <td class="tabular">{row.junction.toFixed(2)}</td>
                 <td class="tabular">{row.sensor.toFixed(2)}</td>
                 <td class="tabular">{row.observed.toFixed(2)}</td>
+                <td class="tabular">{row.rts.toFixed(2)}</td>
+                <td class="tabular">{row.gp.toFixed(3)}</td>
               </tr>
             {/each}
           </tbody>
@@ -270,19 +319,21 @@
         <p class="receipt">
           Ambient <span class="tabular">{result.ambientK.toFixed(2)} K</span>, heater
           <span class="tabular">+{result.heaterK.toFixed(1)} K</span>. The lag estimate uses the
-          first-order relation between the latent junction and sensor series.
+          first-order relation between the latent junction and sensor series. The UKF runs on the
+          noisy sensor only; RTS smoothing uses the full trace. Sensor RMSE is
+          <span class="tabular">{result.sensorRmseK.toFixed(3)} K</span>.
         </p>
       </section>
     {/if}
 
     <section class="method" aria-labelledby="method-title">
-      <p class="eyebrow">What is not claimed yet</p>
-      <h2 id="method-title">This is the first Phase 4 slice</h2>
+      <p class="eyebrow">Estimator boundary</p>
+      <h2 id="method-title">A reference chain, not a calibrated device model</h2>
       <p>
-        The full thermal twin adds an unscented Kalman filter, an RTS smoother, a state-space GP
-        discrepancy and Hankel-DMDc time constants. This page deliberately starts with the
-        deterministic chain and a recovered lag so the later state estimator has a reference to
-        audit.
+        The UKF sees only the noisy sensor and uses the synthetic first-order dynamics; RTS uses
+        the full trace. The GP is fitted to the post-smoother residual with fixed RBF
+        hyperparameters. Hankel-DMDc time constants and a learned discrepancy model remain future
+        work.
       </p>
     </section>
   </main>

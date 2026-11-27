@@ -13,7 +13,7 @@ use bgo_infer::{
 use bgo_info::{analyze_fisher, covariance_ellipse, fisher_from_jacobian};
 use bgo_nn::Flow;
 use bgo_ot::sliced_wasserstein_2;
-use bgo_ssm::{simulate_thermal, ThermalConfig};
+use bgo_ssm::{simulate_thermal, smooth_thermal, ThermalConfig};
 use wasm_bindgen::prelude::*;
 
 /// Core version, rendered in the status bar.
@@ -1474,6 +1474,14 @@ pub struct ThermalTwinOutput {
     junction_k: Vec<f64>,
     sensor_k: Vec<f64>,
     observed_k: Vec<f64>,
+    ukf_junction_k: Vec<f64>,
+    rts_junction_k: Vec<f64>,
+    rts_sd_k: Vec<f64>,
+    gp_mean_k: Vec<f64>,
+    gp_sd_k: Vec<f64>,
+    junction_rmse_k: f64,
+    sensor_rmse_k: f64,
+    gp_rms_k: f64,
     sample_count: u32,
     lag_tau_s: f64,
     true_tau_s: f64,
@@ -1507,6 +1515,46 @@ impl ThermalTwinOutput {
     #[wasm_bindgen(getter)]
     pub fn observed_k(&self) -> Vec<f64> {
         self.observed_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn ukf_junction_k(&self) -> Vec<f64> {
+        self.ukf_junction_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn rts_junction_k(&self) -> Vec<f64> {
+        self.rts_junction_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn rts_sd_k(&self) -> Vec<f64> {
+        self.rts_sd_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn gp_mean_k(&self) -> Vec<f64> {
+        self.gp_mean_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn gp_sd_k(&self) -> Vec<f64> {
+        self.gp_sd_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn junction_rmse_k(&self) -> f64 {
+        self.junction_rmse_k
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn sensor_rmse_k(&self) -> f64 {
+        self.sensor_rmse_k
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn gp_rms_k(&self) -> f64 {
+        self.gp_rms_k
     }
 
     #[wasm_bindgen(getter)]
@@ -1546,6 +1594,7 @@ fn run_thermal_twin_impl(seed: u32) -> Result<ThermalTwinOutput, String> {
         ..ThermalConfig::default()
     };
     let run = simulate_thermal(&config)?;
+    let estimate = smooth_thermal(&config, &run)?;
     Ok(ThermalTwinOutput {
         sample_count: run.time_s.len() as u32,
         time_s: run.time_s,
@@ -1553,6 +1602,14 @@ fn run_thermal_twin_impl(seed: u32) -> Result<ThermalTwinOutput, String> {
         junction_k: run.junction_k,
         sensor_k: run.sensor_k,
         observed_k: run.observed_k,
+        ukf_junction_k: estimate.filtered_junction_k,
+        rts_junction_k: estimate.smoothed_junction_k,
+        rts_sd_k: estimate.smoothed_junction_sd_k,
+        gp_mean_k: estimate.gp_mean_k,
+        gp_sd_k: estimate.gp_sd_k,
+        junction_rmse_k: estimate.junction_rmse_k,
+        sensor_rmse_k: estimate.sensor_rmse_k,
+        gp_rms_k: estimate.gp_rms_k,
         lag_tau_s: run.lag_tau_s,
         true_tau_s: run.true_tau_s,
         max_lag_k: run.max_lag_k,
@@ -1722,6 +1779,11 @@ mod tests {
         assert_eq!(output.observed_k().len(), 181);
         assert!(output.max_lag_k() > 0.0);
         assert!((output.lag_tau_s() - output.true_tau_s()).abs() < 0.5);
+        assert_eq!(output.rts_junction_k().len(), 181);
+        assert_eq!(output.rts_sd_k().len(), 181);
+        assert_eq!(output.gp_sd_k().len(), 181);
+        assert!(output.junction_rmse_k() < 0.1);
+        assert!(output.gp_rms_k().is_finite());
     }
 
     #[test]

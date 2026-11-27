@@ -195,6 +195,14 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             junctionK: output.junction_k,
             sensorK: output.sensor_k,
             observedK: output.observed_k,
+            ukfJunctionK: output.ukf_junction_k,
+            rtsJunctionK: output.rts_junction_k,
+            rtsSdK: output.rts_sd_k,
+            gpMeanK: output.gp_mean_k,
+            gpSdK: output.gp_sd_k,
+            junctionRmseK: output.junction_rmse_k,
+            sensorRmseK: output.sensor_rmse_k,
+            gpRmsK: output.gp_rms_k,
             sampleCount: output.sample_count,
             lagTauS: output.lag_tau_s,
             trueTauS: output.true_tau_s,
@@ -208,6 +216,11 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             value.junctionK.buffer as ArrayBuffer,
             value.sensorK.buffer as ArrayBuffer,
             value.observedK.buffer as ArrayBuffer,
+            value.ukfJunctionK.buffer as ArrayBuffer,
+            value.rtsJunctionK.buffer as ArrayBuffer,
+            value.rtsSdK.buffer as ArrayBuffer,
+            value.gpMeanK.buffer as ArrayBuffer,
+            value.gpSdK.buffer as ArrayBuffer,
           ]);
         } finally {
           output.free();

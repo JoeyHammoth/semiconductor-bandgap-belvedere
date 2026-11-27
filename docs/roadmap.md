@@ -40,8 +40,9 @@ Eight phases, each with acceptance criteria recorded as a GitHub epic. Milestone
 | Task | Issue |
 |---|---|
 | First thermal-twin slice: plate/junction/sensor chain, lag recovery and S6 | [#5](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/5) |
-| UKF/RTS smoother and Kalman marginal likelihood | planned under #5 |
-| State-space GP discrepancy and Hankel-DMDc time constants | planned under #5 |
+| UKF/RTS smoother on the synthetic sensor trace | [#5](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/5) |
+| Fixed-hyperparameter GP residual diagnostic | [#5](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues/5) |
+| Kalman marginal likelihood, state-space GP and Hankel-DMDc time constants | planned under #5 |
 
 ## Sequencing rules
 

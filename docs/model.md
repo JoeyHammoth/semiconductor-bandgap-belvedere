@@ -118,7 +118,7 @@ Voltage residuals are modelled as Gaussian with an instrument-derived scale plus
 
 ### 6.1 First M5 implementation slice
 
-The first Phase 4 slice is a deterministic synthetic chain, not yet a Kalman likelihood:
+The first Phase 4 slice is a deterministic synthetic chain:
 
 ```
 T_plate    -> first-order response to heater/ambient
@@ -128,8 +128,14 @@ T_sensor   -> first-order response to T_junction
 
 Each link uses the exact first-order factor `1 − exp(−Δt/τ)`. The synthetic sensor series adds
 seeded Gaussian noise. The S6 page reports the configured time constants and a lag estimate from
-the latent junction/sensor series. UKF/RTS smoothing, the GP discrepancy, DMDc and the Kalman
-marginal likelihood remain Phase 4 work and must not be claimed by this slice.
+the latent junction/sensor series.
+
+The same slice now runs a three-state UKF with state `[plate, junction, sensor]` and the noisy
+sensor as its only measurement, followed by an RTS smoother over the full trace. It also fits a
+Gaussian process with fixed RBF hyperparameters to the post-smoother sensor residual. The GP is a
+diagnostic, not a latent state or a learned discrepancy model. The M5 Kalman marginal likelihood,
+a state-space GP discrepancy and Hankel-DMDc time constants remain Phase 4 work and are not
+claimed by this slice.
 
 ## 7. Identifiability
 

@@ -9,6 +9,8 @@ test('S6 runs the Rust thermal twin and reports the recovered lag', async ({ pag
   await expect(page.getByTestId('thermal')).toBeVisible({ timeout: 30_000 });
   await expect(page.getByTestId('thermal-plot')).toBeVisible();
   await expect(page.getByTestId('thermal-lag')).toContainText(/τ sensor/);
+  await expect(page.getByTestId('thermal-smoother')).toContainText('RTS junction RMSE');
+  await expect(page.getByTestId('thermal-gp')).toContainText('GP residual RMS');
   await expect(page.getByRole('table', { name: /S6 accessible equivalent/i })).toBeVisible();
 });
 
