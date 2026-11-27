@@ -203,6 +203,11 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             junctionRmseK: output.junction_rmse_k,
             sensorRmseK: output.sensor_rmse_k,
             gpRmsK: output.gp_rms_k,
+            kalmanLogLikelihood: output.kalman_log_likelihood,
+            dmdTauS: output.dmd_tau_s,
+            dmdFrequencyRadS: output.dmd_frequency_rad_s,
+            dmdRelativeResidual: output.dmd_relative_residual,
+            dmdMaxRelativeError: output.dmd_max_relative_error,
             sampleCount: output.sample_count,
             lagTauS: output.lag_tau_s,
             trueTauS: output.true_tau_s,
@@ -221,6 +226,8 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             value.rtsSdK.buffer as ArrayBuffer,
             value.gpMeanK.buffer as ArrayBuffer,
             value.gpSdK.buffer as ArrayBuffer,
+            value.dmdTauS.buffer as ArrayBuffer,
+            value.dmdFrequencyRadS.buffer as ArrayBuffer,
           ]);
         } finally {
           output.free();

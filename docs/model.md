@@ -133,9 +133,19 @@ the latent junction/sensor series.
 The same slice now runs a three-state UKF with state `[plate, junction, sensor]` and the noisy
 sensor as its only measurement, followed by an RTS smoother over the full trace. It also fits a
 Gaussian process with fixed RBF hyperparameters to the post-smoother sensor residual. The GP is a
-diagnostic, not a latent state or a learned discrepancy model. The M5 Kalman marginal likelihood,
-a state-space GP discrepancy and Hankel-DMDc time constants remain Phase 4 work and are not
-claimed by this slice.
+diagnostic, not a latent state or a learned discrepancy model.
+
+The filter also reports its own predictive log-likelihood: the sum of the Gaussian log densities of
+the observations under the unscented predicted measurement. That is the Kalman prediction-error
+decomposition for the configured model and noise level, not evidence over parameters.
+
+A Hankel-DMDc fit identifies damping constants from the delay-embedded observed sensor and the
+known heater input: order 4, three control lags, QR least squares on the centred series, companion
+eigenvalues by Durand–Kerner, then `τ = −Δt / ln|λ|`. The three slowest distinct modes are shown
+with their fit residual and their maximum relative error against the chain's configured constants
+(about 15% for this single-step excitation). A state-space GP discrepancy and a Matern-SDE latent
+state remain Phase 4 work and are not claimed by this slice. See
+[ADR 0010](adr/0010-dmdc-and-marginal-likelihood.md).
 
 ## 7. Identifiability
 

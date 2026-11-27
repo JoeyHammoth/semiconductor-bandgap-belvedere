@@ -7,6 +7,7 @@
 - Broad-prior M0 NPE experiments (affine and rational-quadratic spline) recorded as failed calibrations; the verified local v0.1.0 artifact is retained.
 - First Phase 4 thermal-twin slice: deterministic plate/junction/sensor chain, WASM export and `/thermal/` S6 scene.
 - S6 UKF/RTS state estimate with uncertainty band and fixed-hyperparameter GP residual diagnostic.
+- S6 Kalman marginal likelihood and Hankel-DMDc time constants, with the fit residual and the modal error against the chain's configured constants.
 - Offline-navigation Playwright coverage for the PWA service worker.
 
 ### Fixed

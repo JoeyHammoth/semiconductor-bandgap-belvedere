@@ -2,20 +2,23 @@
 //!
 //! Implemented modules:
 //! - `thermal`: plate/junction/sensor first-order twin and lag recovery
-//! - `ukf`: unscented Kalman filter, RTS smoother and GP residual discrepancy
+//! - `ukf`: unscented Kalman filter, RTS smoother, GP residual discrepancy and
+//!   the Kalman marginal likelihood
+//! - `dmd`: Hankel-DMDc time constants from the delay-embedded trace
 //!
 //! Planned modules:
 //! - `matern`: Matern-3/2 Gaussian process as a linear SDE state
-//! - `dmd`: Hankel-DMD with control and small SVD
 //!
 //! Boundaries: this crate must stay free of I/O and of browser APIs so that it
 //! can be unit-tested on the host and linked into `bgo-wasm`.
 
 #![forbid(unsafe_code)]
 
+pub mod dmd;
 pub mod thermal;
 pub mod ukf;
 
+pub use dmd::{estimate_thermal_modes, ThermalModes};
 pub use thermal::{simulate_thermal, ThermalConfig, ThermalRun};
 pub use ukf::{estimate_thermal, smooth_thermal, ThermalEstimate};
 

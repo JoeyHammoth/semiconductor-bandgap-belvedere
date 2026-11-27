@@ -21,11 +21,15 @@ pub struct ThermalEstimate {
     pub filtered_junction_k: Vec<f64>,
     pub smoothed_junction_k: Vec<f64>,
     pub smoothed_junction_sd_k: Vec<f64>,
+    pub smoothed_sensor_k: Vec<f64>,
     pub gp_mean_k: Vec<f64>,
     pub gp_sd_k: Vec<f64>,
     pub junction_rmse_k: f64,
     pub sensor_rmse_k: f64,
     pub gp_rms_k: f64,
+    /// Gaussian log-likelihood of the observations under the filter's own
+    /// predictive distribution (the Kalman prediction-error decomposition).
+    pub log_likelihood: f64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -88,6 +92,7 @@ pub fn smooth_thermal(config: &ThermalConfig, run: &ThermalRun) -> Result<Therma
     let mut predicted = Vec::with_capacity(count);
     let mut predicted_covariance = Vec::with_capacity(count);
     let mut cross_covariance = vec![mat_zero(); count];
+    let mut marginal_log_likelihood = 0.0;
 
     for index in 0..count {
         let (mean, covariance) = if index == 0 {
@@ -106,8 +111,9 @@ pub fn smooth_thermal(config: &ThermalConfig, run: &ThermalRun) -> Result<Therma
             cross_covariance[index - 1] = cross;
             (mean, covariance)
         };
-        let (updated, updated_covariance) =
+        let (updated, updated_covariance, log_likelihood) =
             update(mean, covariance, observed[index], measurement_variance)?;
+        marginal_log_likelihood += log_likelihood;
         filtered.push(updated);
         filtered_covariance.push(updated_covariance);
         predicted.push(mean);
@@ -164,11 +170,13 @@ pub fn smooth_thermal(config: &ThermalConfig, run: &ThermalRun) -> Result<Therma
         filtered_junction_k,
         smoothed_junction_k,
         smoothed_junction_sd_k,
+        smoothed_sensor_k,
         gp_mean_k,
         gp_sd_k,
         junction_rmse_k,
         sensor_rmse_k,
         gp_rms_k,
+        log_likelihood: marginal_log_likelihood,
     })
 }
 
@@ -209,12 +217,15 @@ fn predict(
     Ok((predicted_mean, predicted_covariance, cross))
 }
 
+/// One unscented update. Returns the posterior mean and covariance together with
+/// the log density of the observation under the predicted measurement, which is
+/// summed into the Kalman marginal likelihood.
 fn update(
     mean: Vec3,
     covariance: Mat3,
     observation: f64,
     measurement_variance: f64,
-) -> Result<(Vec3, Mat3), String> {
+) -> Result<(Vec3, Mat3, f64), String> {
     let points = sigma_points(mean, covariance)?;
     let weights = sigma_weights();
     let measurements = points.iter().map(|point| point[2]).collect::<Vec<_>>();
@@ -239,6 +250,9 @@ fn update(
     }
     let gain = cross.map(|value| value / measurement_covariance);
     let innovation = observation - measurement_mean;
+    let log_likelihood = -0.5
+        * ((std::f64::consts::TAU * measurement_covariance).ln()
+            + innovation * innovation / measurement_covariance);
     let updated = [
         mean[0] + gain[0] * innovation,
         mean[1] + gain[1] * innovation,
@@ -251,7 +265,7 @@ fn update(
         }
     }
     symmetrise(&mut updated_covariance);
-    Ok((updated, updated_covariance))
+    Ok((updated, updated_covariance, log_likelihood))
 }
 
 fn sigma_weights() -> ([f64; 7], [f64; 7]) {
@@ -554,6 +568,28 @@ mod tests {
             .smoothed_junction_sd_k
             .iter()
             .all(|value| value.is_finite() && *value >= 0.0));
+    }
+
+    #[test]
+    fn marginal_likelihood_penalises_a_mismatched_noise_level() {
+        let config = ThermalConfig::default();
+        let run = simulate_thermal(&config).expect("thermal trace");
+        let matched = smooth_thermal(&config, &run).expect("matched likelihood");
+        assert!(matched.log_likelihood.is_finite());
+
+        // The same observations judged by a filter that assumes ten times less
+        // sensor noise must score the data as far less likely.
+        let tighter = ThermalConfig {
+            sensor_noise_k: config.sensor_noise_k * 0.1,
+            ..config
+        };
+        let mismatched = smooth_thermal(&tighter, &run).expect("mismatched likelihood");
+        assert!(
+            mismatched.log_likelihood < matched.log_likelihood - 10.0,
+            "matched {} vs mismatched {}",
+            matched.log_likelihood,
+            mismatched.log_likelihood
+        );
     }
 
     #[test]

@@ -288,6 +288,16 @@
             <span class="label">GP residual RMS</span>
             <strong class="tabular">{result.gpRmsK.toFixed(3)} K</strong>
           </p>
+          <p data-testid="thermal-likelihood">
+            <span class="label">Kalman log-likelihood</span>
+            <strong class="tabular">{result.kalmanLogLikelihood.toFixed(1)}</strong>
+          </p>
+          <p data-testid="thermal-modes">
+            <span class="label">DMDc τ</span>
+            <strong class="tabular">
+              {Array.from(result.dmdTauS, (tau) => tau.toFixed(0)).join(' · ')} s
+            </strong>
+          </p>
         </div>
         <table class="trace-table" data-testid="thermal-table">
           <caption>S6 accessible equivalent: synthetic thermal state every 200 s</caption>
@@ -321,7 +331,13 @@
           <span class="tabular">+{result.heaterK.toFixed(1)} K</span>. The lag estimate uses the
           first-order relation between the latent junction and sensor series. The UKF runs on the
           noisy sensor only; RTS smoothing uses the full trace. Sensor RMSE is
-          <span class="tabular">{result.sensorRmseK.toFixed(3)} K</span>.
+          <span class="tabular">{result.sensorRmseK.toFixed(3)} K</span>. Hankel-DMDc on the
+          observed series fits a fourth-order companion model and reports the three distinct modes
+          within <span class="tabular">{(result.dmdMaxRelativeError * 100).toFixed(1)}%</span> of
+          the chain constants (fit residual
+          <span class="tabular">{(result.dmdRelativeResidual * 100).toFixed(1)}%</span>); a single
+          heater step leaves the fastest mode only weakly excited, so this is a diagnostic, not an
+          identification claim.
         </p>
       </section>
     {/if}
@@ -332,7 +348,9 @@
       <p>
         The UKF sees only the noisy sensor and uses the synthetic first-order dynamics; RTS uses
         the full trace. The GP is fitted to the post-smoother residual with fixed RBF
-        hyperparameters. Hankel-DMDc time constants and a learned discrepancy model remain future
+        hyperparameters. The Kalman marginal likelihood is the filter's own predictive
+        log-density, not a model-evidence estimate. Hankel-DMDc reports damping constants from a
+        delay embedding. A learned discrepancy model and a Matérn-SDE latent state remain future
         work.
       </p>
     </section>

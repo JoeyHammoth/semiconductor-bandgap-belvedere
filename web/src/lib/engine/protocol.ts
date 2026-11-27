@@ -144,6 +144,11 @@ export interface ThermalTwinResult {
   junctionRmseK: number;
   sensorRmseK: number;
   gpRmsK: number;
+  kalmanLogLikelihood: number;
+  dmdTauS: Float64Array;
+  dmdFrequencyRadS: Float64Array;
+  dmdRelativeResidual: number;
+  dmdMaxRelativeError: number;
   sampleCount: number;
   lagTauS: number;
   trueTauS: number;
@@ -358,6 +363,11 @@ export interface WasmThermalTwinOutput {
   readonly junction_rmse_k: number;
   readonly sensor_rmse_k: number;
   readonly gp_rms_k: number;
+  readonly kalman_log_likelihood: number;
+  readonly dmd_tau_s: Float64Array;
+  readonly dmd_frequency_rad_s: Float64Array;
+  readonly dmd_relative_residual: number;
+  readonly dmd_max_relative_error: number;
   readonly sample_count: number;
   readonly lag_tau_s: number;
   readonly true_tau_s: number;

@@ -118,7 +118,10 @@ Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff
 | Thermal chain recovers the configured sensor lag | `cargo test -p bgo-ssm thermal::recovers_the_sensor_time_constant` | relative error ≤ 2% | verified (unit) |
 | UKF/RTS recovers the latent junction from the noisy sensor | `cargo test -p bgo-ssm ukf::tests::smoother_recovers_the_latent_junction` | smoothed junction RMSE ≤ 0.1 K | verified (unit) |
 | GP residual diagnostic is finite and non-negative | `cargo test -p bgo-ssm ukf::tests::gp_discrepancy_is_finite` | finite mean, finite non-negative standard deviation | verified (unit) |
+| Kalman marginal likelihood responds to a noise mismatch | `cargo test -p bgo-ssm ukf::tests::marginal_likelihood_penalises_a_mismatched_noise_level` | matched-noise score exceeds a 10× tighter filter by more than 10 nats | verified (unit) |
+| Hankel-DMDc recovers the chain's damping constants | `cargo test -p bgo-ssm dmd::tests::recovers_the_chain_time_constants` | three distinct positive modes, maximum relative error ≤ 20% of the configured constants, fit residual ≤ 5% | verified (unit) |
 | S6 runs the Rust thermal twin and exposes RTS/GP outputs | Playwright Chromium `/thermal/`; `data-testid="thermal"`, `thermal-smoother`, `thermal-gp`, table | finite recovered lag, RTS/GP metrics, plot and accessible table | verified (Chromium e2e + a11y) |
+| S6 shows the filtered likelihood and DMDc modes | Playwright `/thermal/`; `thermal-likelihood`, `thermal-modes` | finite log-likelihood and three time constants rendered next to the chain's constants | verified (Chromium e2e + a11y) |
 
 ## 8. How to run
 
