@@ -13,6 +13,10 @@ This is a personal project maintained on a best-effort basis. There is no paid s
 | A security or privacy problem | [SECURITY.md](SECURITY.md): private advisory, never a public issue |
 | How to build, test or open a PR | [CONTRIBUTING.md](CONTRIBUTING.md) |
 
+## Discussions are off
+
+Questions go to issues with the `question` label, not to GitHub Discussions. A project with one maintainer does not sustain a second support surface: an empty Q&A category reads as an abandoned project, while a labelled issue stays searchable, closable, and linked to the commit that answers it. If Discussions ever becomes the better home, this section and the issue-chooser links change with it.
+
 ## Before opening an issue
 
 - Search the open and closed issues; triage labels and closed reasons are kept visible.
