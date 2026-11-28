@@ -6,6 +6,10 @@
 [![deploy](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/actions/workflows/deploy.yml/badge.svg)](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/actions/workflows/deploy.yml)
 [![licence: MIT](https://img.shields.io/badge/licence-MIT-blue.svg)](LICENSE)
 
+<p align="center">
+  <img src="docs/assets/infer.png" alt="The instrument's /infer page after a synthetic M0 run: the marginal posterior of E_g(0 K), the joint lower triangle, the posterior summary table and the passing diagnostics badge." width="900">
+</p>
+
 **Live:** https://joeyhammoth.github.io/semiconductor-bandgap-belvedere/ — Phase 4 in progress: the local calibrated neural posterior, offline PWA, and a synthetic thermal twin with UKF/RTS smoothing, a GP residual diagnostic, a Matérn-3/2 latent discrepancy, a Kalman marginal likelihood, Hankel-DMDc time constants with bootstrap bands, and a grey-box output-error cross-check. The original recordings no longer exist; the site uses labelled literature parameters and the report's published summary. No measured dataset is published.
 
 ## The question
