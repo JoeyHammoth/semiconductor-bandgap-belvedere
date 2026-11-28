@@ -1,0 +1,29 @@
+{
+  // Node 24 (see .nvmrc) plus the Rust toolchain pinned in rust-toolchain.toml.
+  // Python (train/) is optional for the site and deliberately not installed.
+  "name": "Band-Gap Observatory",
+  "image": "mcr.microsoft.com/devcontainers/rust@sha256:99196945fec17043ebd2d802b01c9700a68e51722a009612fbc3ab31c1cf325d",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "24"
+    }
+  },
+  // wasm-pack is pinned and not in the base image; scripts/setup.mjs checks it
+  // but will not install it, so it is installed once when the container is made.
+  "onCreateCommand": "cargo install wasm-pack --version 0.15.1 --locked",
+  // A host node_modules is built for the host OS, and Vite's native bindings
+  // would not load; keep the container's install in its own volume instead.
+  "mounts": [
+    "source=bandgap-observatory-web-node-modules,target=${containerWorkspaceFolder}/web/node_modules,type=volume"
+  ],
+  // Populate the volume for Linux, add the wasm32 target, then check everything.
+  "postCreateCommand": "sudo chown vscode:vscode web/node_modules && npm ci --prefix web && node scripts/setup.mjs",
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": {
+      "label": "SvelteKit dev server",
+      "onAutoForward": "notify"
+    }
+  },
+  "remoteUser": "vscode"
+}
