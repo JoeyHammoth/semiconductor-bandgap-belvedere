@@ -2,7 +2,7 @@
   // Node 24 (see .nvmrc) plus the Rust toolchain pinned in rust-toolchain.toml.
   // Python (train/) is optional for the site and deliberately not installed.
   "name": "Band-Gap Observatory",
-  "image": "mcr.microsoft.com/devcontainers/rust:2.1.7-bookworm",
+  "image": "mcr.microsoft.com/devcontainers/rust:bookworm",
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
       "version": "24"
