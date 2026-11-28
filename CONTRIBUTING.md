@@ -29,6 +29,8 @@ node scripts/setup.mjs --check  # report only, change nothing
 
 It never installs Node, Rust or wasm-pack; it prints the exact command when one is missing.
 
+Or open the repository in a Codespace, or in a local container with the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers). [`.devcontainer/devcontainer.json`](.devcontainer/devcontainer.json) pins Node 24, Rust and `wasm-pack` 0.15.1, and runs the setup script when the container is created. Python is optional there and is not installed.
+
 The same steps by hand:
 
 ```bash

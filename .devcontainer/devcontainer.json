@@ -1,0 +1,24 @@
+{
+  // Node 24 (see .nvmrc) plus the Rust toolchain pinned in rust-toolchain.toml.
+  // Python (train/) is optional for the site and deliberately not installed.
+  "name": "Band-Gap Observatory",
+  "image": "mcr.microsoft.com/devcontainers/rust:2.1.7-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "24"
+    }
+  },
+  // wasm-pack is pinned and not in the base image; scripts/setup.mjs checks it
+  // but will not install it, so it is installed once when the container is made.
+  "onCreateCommand": "cargo install wasm-pack --version 0.15.1 --locked",
+  // Adds the wasm32 target and installs the web dependencies.
+  "postCreateCommand": "node scripts/setup.mjs",
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": {
+      "label": "SvelteKit dev server",
+      "onAutoForward": "notify"
+    }
+  },
+  "remoteUser": "vscode"
+}
