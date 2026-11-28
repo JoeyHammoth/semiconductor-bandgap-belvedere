@@ -1,7 +1,10 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-test('NPE page runs the frozen flow and shows calibrated summaries', async ({ page, browserName }) => {
+test('NPE page runs the frozen flow and shows calibrated summaries', async ({
+  page,
+  browserName,
+}) => {
   test.skip(browserName !== 'chromium', 'one flow run is enough for CI time');
   await page.goto('npe/');
   const run = page.getByTestId('npe-run');
@@ -19,7 +22,9 @@ test('NPE page has no serious accessibility violations', async ({ page }) => {
   await expect(page.getByTestId('npe-run')).toBeVisible({ timeout: 30_000 });
   const results = await new AxeBuilder({ page }).analyze();
   expect(
-    results.violations.filter((violation) => violation.impact === 'serious' || violation.impact === 'critical'),
+    results.violations.filter(
+      (violation) => violation.impact === 'serious' || violation.impact === 'critical',
+    ),
   ).toEqual([]);
 });
 
@@ -40,12 +45,13 @@ test('story is keyboard operable', async ({ page }) => {
 
 test('PWA manifest and service worker are registered', async ({ page }) => {
   await page.goto('');
-  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', /manifest\.webmanifest/);
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute(
+    'href',
+    /manifest\.webmanifest/,
+  );
   const manifest = await page.request.get('manifest.webmanifest');
   expect(manifest.ok()).toBe(true);
-  await expect
-    .poll(async () => page.evaluate(() => 'serviceWorker' in navigator))
-    .toBe(true);
+  await expect.poll(async () => page.evaluate(() => 'serviceWorker' in navigator)).toBe(true);
 });
 
 test('PWA serves a navigation offline after the worker activates', async ({
@@ -60,7 +66,9 @@ test('PWA serves a navigation offline after the worker activates', async ({
     if (!registration.active) throw new Error('service worker did not activate');
     if (!navigator.serviceWorker.controller) {
       await new Promise<void>((resolve) => {
-        navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true });
+        navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), {
+          once: true,
+        });
       });
     }
   });

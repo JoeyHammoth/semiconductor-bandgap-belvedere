@@ -56,6 +56,7 @@ Requirements: Node 24 ([`.nvmrc`](.nvmrc)), the Rust toolchain pinned in [`rust-
 | Rust format | `cargo fmt --all -- --check` |
 | Rust lint | `cargo clippy --workspace --all-targets -- -D warnings` |
 | Rust tests | `cargo test --workspace` |
+| Web formatting | `cd web && npm run format:check` (fix with `npm run format`) |
 | Web types | `cd web && npm run check` |
 | Web unit tests | `cd web && npm run test` |
 | Browser and axe tests | `cd web && npm run e2e` |

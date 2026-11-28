@@ -89,7 +89,8 @@
     };
 
     const xScale = (value: number) => panel(0, 0).x + ((value - x0) / (x1 - x0)) * panelWidth;
-    const yScale = (value: number) => panel(1, 1).y + panelHeight - ((value - y0) / (y1 - y0)) * panelHeight;
+    const yScale = (value: number) =>
+      panel(1, 1).y + panelHeight - ((value - y0) / (y1 - y0)) * panelHeight;
 
     context.font = '10px "JetBrains Mono Variable", ui-monospace, monospace';
     context.textBaseline = 'middle';
@@ -179,7 +180,11 @@
     context.globalAlpha = 1;
     context.fillStyle = dim;
     context.textAlign = 'center';
-    context.fillText(labels[1] ?? 'parameter 2', secondDiagonal.x + secondDiagonal.width / 2, secondDiagonal.y + secondDiagonal.height + 16);
+    context.fillText(
+      labels[1] ?? 'parameter 2',
+      secondDiagonal.x + secondDiagonal.width / 2,
+      secondDiagonal.y + secondDiagonal.height + 16,
+    );
     context.textAlign = 'left';
 
     const notes = panel(0, 1);
@@ -244,8 +249,8 @@
     </table>
   </div>
   <figcaption>
-    Marginal posteriors and the joint lower triangle. The canvas is not the accessible source;
-    the table carries the interval summary.
+    Marginal posteriors and the joint lower triangle. The canvas is not the accessible source; the
+    table carries the interval summary.
   </figcaption>
 </figure>
 

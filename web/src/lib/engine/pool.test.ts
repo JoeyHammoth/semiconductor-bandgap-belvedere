@@ -217,7 +217,12 @@ describe('EnginePool', () => {
 
     const next = pool.version();
     const worker = fresh.find((candidate) => findRequest(candidate, 'version'))!;
-    worker.respond({ id: findRequest(worker, 'version').id, ok: true, kind: 'version', value: '0.0.1' });
+    worker.respond({
+      id: findRequest(worker, 'version').id,
+      ok: true,
+      kind: 'version',
+      value: '0.0.1',
+    });
     await expect(next).resolves.toEqual({ ok: true, value: '0.0.1' });
   });
 

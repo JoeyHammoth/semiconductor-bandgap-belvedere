@@ -56,8 +56,8 @@
   </dl>
 
   <p class="rule">
-    The badge is computed from the Rust diagnostics over all chains. The interface cannot
-    override it.
+    The badge is computed from the Rust diagnostics over all chains. The interface cannot override
+    it.
   </p>
 </section>
 

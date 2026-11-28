@@ -59,9 +59,7 @@
       : '',
   );
   const lagError = $derived(
-    result
-      ? Math.abs(result.lagTauS - result.trueTauS) / Math.max(1e-9, result.trueTauS)
-      : null,
+    result ? Math.abs(result.lagTauS - result.trueTauS) / Math.max(1e-9, result.trueTauS) : null,
   );
 
   function applyTheme() {
@@ -182,10 +180,7 @@
         else context.lineTo(x, y);
       }
       for (let index = result!.sampleCount - 1; index >= 0; index -= 1) {
-        context.lineTo(
-          px(result!.timeS[index]),
-          py(centre[index] - spread[index]),
-        );
+        context.lineTo(px(result!.timeS[index]), py(centre[index] - spread[index]));
       }
       context.closePath();
       context.fillStyle = colour;
@@ -287,8 +282,7 @@
     const domainLow = ladderTaus.length ? Math.min(...ladderTaus) * 0.8 : 10;
     const domainHigh = ladderTaus.length ? Math.max(...ladderTaus) * 1.25 : 1000;
     const mx = (tau: number) =>
-      margin.left +
-      (Math.log(tau / domainLow) / Math.log(domainHigh / domainLow)) * plotWidth;
+      margin.left + (Math.log(tau / domainLow) / Math.log(domainHigh / domainLow)) * plotWidth;
     const rowCount = Math.min(result.dmdTauS.length, result.greyboxTauS.length);
     context.strokeStyle = hair;
     context.lineWidth = 1;
@@ -452,7 +446,9 @@
           </p>
           <p>
             <span class="label">Relative error</span>
-            <strong class="tabular">{lagError === null ? '—' : `${(lagError * 100).toFixed(2)}%`}</strong>
+            <strong class="tabular">
+              {lagError === null ? '—' : `${(lagError * 100).toFixed(2)}%`}
+            </strong>
           </p>
           <p>
             <span class="label">Peak junction−sensor</span>
@@ -534,21 +530,20 @@
           <span class="tabular">+{result.heaterK.toFixed(1)} K</span>. The lag estimate uses the
           first-order relation between the latent junction and sensor series. The UKF runs on the
           noisy sensor only; RTS smoothing uses the full trace. Sensor RMSE is
-          <span class="tabular">{result.sensorRmseK.toFixed(3)} K</span>. The post-smoother
-          residual is carried as a two-state Matérn-3/2 SDE whose length and signal scales come from
-          a grid hyperprior: ℓ = <span class="tabular">{result.maternLengthScaleS.toFixed(0)} s</span>,
-          σ = <span class="tabular">{result.maternSignalSdK.toFixed(4)} K</span>{result.maternAtGridEdge
+          <span class="tabular">{result.sensorRmseK.toFixed(3)} K</span>. The post-smoother residual
+          is carried as a two-state Matérn-3/2 SDE whose length and signal scales come from a grid
+          hyperprior: ℓ = <span class="tabular">{result.maternLengthScaleS.toFixed(0)} s</span>, σ =
+          <span class="tabular">{result.maternSignalSdK.toFixed(4)} K</span>{result.maternAtGridEdge
             ? ' (at the grid floor, so the residual needs no smooth discrepancy beyond sensor noise)'
-            : ''}, with <span class="tabular">{(result.maternCoverage95 * 100).toFixed(1)}%</span> of
-          residuals inside the 95% predictive band. Hankel-DMDc on the
-          observed series fits a fourth-order companion model to the three-pulse schedule and
-          reports the three distinct modes within
+            : ''}, with <span class="tabular">{(result.maternCoverage95 * 100).toFixed(1)}%</span>
+          of residuals inside the 95% predictive band. Hankel-DMDc on the observed series fits a fourth-order
+          companion model to the three-pulse schedule and reports the three distinct modes within
           <span class="tabular">{(result.dmdMaxRelativeError * 100).toFixed(1)}%</span> of the chain
           constants (fit residual
           <span class="tabular">{(result.dmdRelativeResidual * 100).toFixed(1)}%</span>). The bands
           come from
-          <span class="tabular">{result.dmdBootstrapReplicates}</span> parametric-bootstrap refits of
-          the fitted model over the trace; the middle and fastest poles are the least certain, so
+          <span class="tabular">{result.dmdBootstrapReplicates}</span> parametric-bootstrap refits
+          of the fitted model over the trace; the middle and fastest poles are the least certain, so
           this is a diagnostic, not an identification claim. A grey-box output-error fit of the same
           chain, which assumes the three-state structure and the known heater schedule instead of
           identifying it, returns
@@ -556,9 +551,8 @@
           <span class="tabular">{(result.greyboxMaxRelativeError * 100).toFixed(1)}%</span>,
           output-error RMS <span class="tabular">{result.greyboxOutputRmsK.toFixed(3)} K</span>,
           bands from <span class="tabular">{result.greyboxBootstrapReplicates}</span>
-          residual-bootstrap refits).
-          It recovers the sensor pole that the blind ARX fit biases; it is shown beside DMDc rather
-          than replacing it, because it only validates the chain it already assumes.
+          residual-bootstrap refits). It recovers the sensor pole that the blind ARX fit biases; it is
+          shown beside DMDc rather than replacing it, because it only validates the chain it already assumes.
         </p>
       </section>
     {/if}
@@ -567,15 +561,14 @@
       <p class="eyebrow">Estimator boundary</p>
       <h2 id="method-title">A reference chain, not a calibrated device model</h2>
       <p>
-        The UKF sees only the noisy sensor and uses the synthetic first-order dynamics; RTS uses
-        the full trace. The GP is fitted to the post-smoother residual with fixed RBF
-        hyperparameters. The Kalman marginal likelihood is the filter's own predictive
-        log-density, not a model-evidence estimate. Hankel-DMDc reports damping constants from a
-        delay embedding. The Matérn-3/2 discrepancy is carried as a two-state latent SDE whose
-        length and signal scales are fitted on a grid hyperprior, so the discrepancy is a state of
-        the model rather than a kernel fit. The grey-box fit is the opposite trade: it assumes the
-        chain structure to remove the errors-in-variables bias, so it cannot discover a structure
-        the chain does not have.
+        The UKF sees only the noisy sensor and uses the synthetic first-order dynamics; RTS uses the
+        full trace. The GP is fitted to the post-smoother residual with fixed RBF hyperparameters.
+        The Kalman marginal likelihood is the filter's own predictive log-density, not a
+        model-evidence estimate. Hankel-DMDc reports damping constants from a delay embedding. The
+        Matérn-3/2 discrepancy is carried as a two-state latent SDE whose length and signal scales
+        are fitted on a grid hyperprior, so the discrepancy is a state of the model rather than a
+        kernel fit. The grey-box fit is the opposite trade: it assumes the chain structure to remove
+        the errors-in-variables bias, so it cannot discover a structure the chain does not have.
       </p>
     </section>
   </main>
