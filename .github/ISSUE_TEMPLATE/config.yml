@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Question or setup help
+    url: https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues?q=is%3Aopen+label%3Aquestion
+    about: Ask a usage question in the issue tracker; Discussions are intentionally off.
   - name: Contributing and development setup
     url: https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/CONTRIBUTING.md
     about: How to build, test and open a pull request.
