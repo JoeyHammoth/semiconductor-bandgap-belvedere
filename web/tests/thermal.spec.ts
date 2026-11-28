@@ -1,7 +1,10 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-test('S6 runs the Rust thermal twin and reports the recovered lag', async ({ page, browserName }) => {
+test('S6 runs the Rust thermal twin and reports the recovered lag', async ({
+  page,
+  browserName,
+}) => {
   test.skip(browserName !== 'chromium', 'one WASM thermal run is enough for CI time');
   await page.goto('thermal/');
   await expect(page.getByTestId('thermal-run')).toBeEnabled({ timeout: 30_000 });

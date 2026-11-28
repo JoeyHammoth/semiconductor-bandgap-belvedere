@@ -61,7 +61,9 @@
     const plot = { x: 54, y: 12, width: width - 72, height: height - 38 };
     const xScale = (draw: number) => plot.x + (draw / Math.max(1, drawsPerChain - 1)) * plot.width;
     const yScale = (value: number) =>
-      plot.y + plot.height - ((Math.log10(Math.max(value, 1e-9)) - low) / (high - low)) * plot.height;
+      plot.y +
+      plot.height -
+      ((Math.log10(Math.max(value, 1e-9)) - low) / (high - low)) * plot.height;
 
     context.font = '10px "JetBrains Mono Variable", ui-monospace, monospace';
     context.textBaseline = 'middle';
@@ -167,8 +169,8 @@
     </table>
   </div>
   <figcaption>
-    Absolute Metropolis energy error per post-warmup draw. The gate uses the mean across chains,
-    not any single draw. Divergences: <strong>{divergences}</strong>.
+    Absolute Metropolis energy error per post-warmup draw. The gate uses the mean across chains, not
+    any single draw. Divergences: <strong>{divergences}</strong>.
   </figcaption>
 </figure>
 

@@ -57,7 +57,9 @@ worker.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() =>
-          caches.match(offlineFallback, { ignoreVary: true }).then((fallback) => fallback ?? Response.error()),
+          caches
+            .match(offlineFallback, { ignoreVary: true })
+            .then((fallback) => fallback ?? Response.error()),
         );
     }),
   );

@@ -6,7 +6,9 @@ test('landing page renders the story', async ({ page }) => {
   await expect(page).toHaveTitle(/Band-Gap Observatory/);
   await expect(page.getByRole('heading', { level: 1 })).toContainText('How wide is the gap');
   await expect(page.getByRole('contentinfo', { name: 'Compute status' })).toBeVisible();
-  await expect(page.getByText(/original per-run recordings no longer exist/i).first()).toBeVisible();
+  await expect(
+    page.getByText(/original per-run recordings no longer exist/i).first(),
+  ).toBeVisible();
 });
 
 test('a value computed in Rust/WASM is rendered', async ({ page }) => {

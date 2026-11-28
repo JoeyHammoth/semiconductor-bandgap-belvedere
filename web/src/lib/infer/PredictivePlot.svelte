@@ -32,7 +32,8 @@
 
   function draw() {
     const element = canvas;
-    if (!element || temperatures.length < 2 || predictive.pointCount !== temperatures.length) return;
+    if (!element || temperatures.length < 2 || predictive.pointCount !== temperatures.length)
+      return;
     const width = Math.max(320, Math.floor(element.clientWidth));
     const height = Math.max(260, Math.floor(element.clientHeight));
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -162,7 +163,11 @@
     context.restore();
     context.textAlign = 'left';
     context.fillStyle = dim;
-    context.fillText('S1 · observed  ·  median  ·  90% predictive  ·  500 posterior curves', plot.x, 8);
+    context.fillText(
+      'S1 · observed  ·  median  ·  90% predictive  ·  500 posterior curves',
+      plot.x,
+      8,
+    );
   }
 
   onMount(() => {

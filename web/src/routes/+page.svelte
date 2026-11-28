@@ -307,8 +307,8 @@
       <p>
         Phase 4 — the first thermal-twin slice is in place: a deterministic plate, junction and
         sensor chain with a recovered lag, alongside the Phase 3 instant posterior and PWA shell.
-        The synthetic M0–M4 references, fail-closed diagnostics and MCLMC remain the foundation.
-        The original recordings no longer exist, so every scene uses labelled simulated and
+        The synthetic M0–M4 references, fail-closed diagnostics and MCLMC remain the foundation. The
+        original recordings no longer exist, so every scene uses labelled simulated and
         report-anchored data. Full plan in
         <a
           href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/docs/roadmap.md"

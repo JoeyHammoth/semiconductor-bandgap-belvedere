@@ -1,141 +1,3 @@
-<script lang="ts">
-  import { onMount } from 'svelte';
-
-  interface Props {
-    gap?: number | null;
-    temperature?: number;
-    onbackend?: (backend: 'webgpu' | 'webgl2' | 'static') => void;
-  }
-
-  let { gap = null, temperature = 300, onbackend = () => {} }: Props = $props();
-
-  type Backend = 'detecting' | 'webgpu' | 'webgl2' | 'static';
-
-  let canvas = $state<HTMLCanvasElement | null>(null);
-  let backend = $state<Backend>('detecting');
-  let update = (_gap: number, _temperature: number) => {};
-  let reduced = false;
-
-  $effect(() => {
-    update(gap ?? 1.11, temperature);
-  });
-
-  onMount(() => {
-    reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced) {
-      backend = 'static';
-      onbackend('static');
-      return;
-    }
-    let dispose = () => {};
-    let cancelled = false;
-
-    void (async () => {
-      const element = canvas;
-      if (!element) {
-        backend = 'static';
-        onbackend('static');
-        return;
-      }
-      try {
-        const gpu = await startWebGPU(element, () => reduced);
-        if (cancelled) {
-          gpu?.dispose();
-          return;
-        }
-        if (gpu) {
-          update = gpu.update;
-          dispose = gpu.dispose;
-          backend = 'webgpu';
-          onbackend('webgpu');
-          gpu.update(gap ?? 1.11, temperature);
-          return;
-        }
-      } catch {
-        // fall through to WebGL2
-      }
-      let gl = null;
-      try {
-        gl = startWebGL2(element, () => reduced);
-      } catch {
-        gl = null;
-      }
-      if (cancelled) return gl?.dispose();
-      if (gl) {
-        update = gl.update;
-        dispose = gl.dispose;
-        backend = 'webgl2';
-        onbackend('webgl2');
-        gl.update(gap ?? 1.11, temperature);
-        return;
-      }
-      backend = 'static';
-      onbackend('static');
-    })();
-
-    return () => {
-      cancelled = true;
-      dispose();
-    };
-  });
-
-  const bandY = $derived(262 - Math.min(Math.max((gap ?? 1.11) / 3, 0.1), 1) * 150);
-</script>
-
-<div class="scene panel" data-backend={backend}>
-  <canvas bind:this={canvas} aria-hidden="true"></canvas>
-  {#if backend !== 'webgpu' && backend !== 'webgl2'}
-    <svg
-      viewBox="0 0 400 300"
-      role="img"
-      aria-label={`Sketch of the gap: ${gap === null ? 'unknown' : gap.toFixed(3)} electronvolts at ${temperature.toFixed(0)} kelvin`}
-    >
-      <defs>
-        <linearGradient id="hero-gap" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="oklch(0.55 0.12 300)" />
-          <stop offset="100%" stop-color="oklch(0.82 0.16 70)" />
-        </linearGradient>
-      </defs>
-      <rect width="400" height="300" fill="oklch(0.12 0.01 265)" rx="10" />
-      <polygon points="200,22 376,278 24,278" fill="url(#hero-gap)" opacity="0.92" />
-      <line x1="40" y1={bandY} x2="360" y2={bandY} stroke="oklch(0.1 0.01 265)" stroke-width="3" stroke-dasharray="6 5" />
-      <line x1="40" y1={bandY + 14} x2="360" y2={bandY + 14} stroke="oklch(0.98 0.01 90)" stroke-width="1" opacity="0.7" />
-    </svg>
-  {/if}
-  <p class="scene-caption">
-    Gap sketch · <span class="tabular">{backend === 'detecting' ? 'detecting' : backend}</span>
-  </p>
-</div>
-
-<style>
-  .scene {
-    position: relative;
-    margin: 0.5rem 0 1rem;
-    overflow: hidden;
-    background: oklch(0.12 0.01 265);
-  }
-
-  canvas,
-  svg {
-    display: block;
-    width: 100%;
-    height: clamp(220px, 32vh, 320px);
-  }
-
-  .scene-caption {
-    position: absolute;
-    left: 0.9rem;
-    bottom: 0.7rem;
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: color-mix(in oklch, var(--ink), transparent 35%);
-    text-shadow: 0 1px 4px oklch(0 0 0 / 0.6);
-  }
-</style>
-
 <script lang="ts" module>
   interface Renderer {
     update: (gap: number, temperature: number) => void;
@@ -208,7 +70,9 @@ fn fs(input: VOut) -> @location(0) vec4f {
       vertex: {
         module,
         entryPoint: 'vs',
-        buffers: [{ arrayStride: 8, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }] }],
+        buffers: [
+          { arrayStride: 8, attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }] },
+        ],
       },
       fragment: { module, entryPoint: 'fs', targets: [{ format }] },
       primitive: { topology: 'triangle-list' },
@@ -336,7 +200,11 @@ fn fs(input: VOut) -> @location(0) vec4f {
 
     const buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-0.85, -0.72, 0.85, -0.72, 0.0, 0.78]), gl.STATIC_DRAW);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([-0.85, -0.72, 0.85, -0.72, 0.0, 0.78]),
+      gl.STATIC_DRAW,
+    );
     const position = gl.getAttribLocation(program, 'a_position');
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
@@ -381,3 +249,157 @@ fn fs(input: VOut) -> @location(0) vec4f {
     };
   }
 </script>
+
+<script lang="ts">
+  import { onMount } from 'svelte';
+
+  interface Props {
+    gap?: number | null;
+    temperature?: number;
+    onbackend?: (backend: 'webgpu' | 'webgl2' | 'static') => void;
+  }
+
+  let { gap = null, temperature = 300, onbackend = () => {} }: Props = $props();
+
+  type Backend = 'detecting' | 'webgpu' | 'webgl2' | 'static';
+
+  let canvas = $state<HTMLCanvasElement | null>(null);
+  let backend = $state<Backend>('detecting');
+  let update = (_gap: number, _temperature: number) => {};
+  let reduced = false;
+
+  $effect(() => {
+    update(gap ?? 1.11, temperature);
+  });
+
+  onMount(() => {
+    reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) {
+      backend = 'static';
+      onbackend('static');
+      return;
+    }
+    let dispose = () => {};
+    let cancelled = false;
+
+    void (async () => {
+      const element = canvas;
+      if (!element) {
+        backend = 'static';
+        onbackend('static');
+        return;
+      }
+      try {
+        const gpu = await startWebGPU(element, () => reduced);
+        if (cancelled) {
+          gpu?.dispose();
+          return;
+        }
+        if (gpu) {
+          update = gpu.update;
+          dispose = gpu.dispose;
+          backend = 'webgpu';
+          onbackend('webgpu');
+          gpu.update(gap ?? 1.11, temperature);
+          return;
+        }
+      } catch {
+        // fall through to WebGL2
+      }
+      let gl = null;
+      try {
+        gl = startWebGL2(element, () => reduced);
+      } catch {
+        gl = null;
+      }
+      if (cancelled) return gl?.dispose();
+      if (gl) {
+        update = gl.update;
+        dispose = gl.dispose;
+        backend = 'webgl2';
+        onbackend('webgl2');
+        gl.update(gap ?? 1.11, temperature);
+        return;
+      }
+      backend = 'static';
+      onbackend('static');
+    })();
+
+    return () => {
+      cancelled = true;
+      dispose();
+    };
+  });
+
+  const bandY = $derived(262 - Math.min(Math.max((gap ?? 1.11) / 3, 0.1), 1) * 150);
+</script>
+
+<div class="scene panel" data-backend={backend}>
+  <canvas bind:this={canvas} aria-hidden="true"></canvas>
+  {#if backend !== 'webgpu' && backend !== 'webgl2'}
+    <svg
+      viewBox="0 0 400 300"
+      role="img"
+      aria-label={`Sketch of the gap: ${gap === null ? 'unknown' : gap.toFixed(3)} electronvolts at ${temperature.toFixed(0)} kelvin`}
+    >
+      <defs>
+        <linearGradient id="hero-gap" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="oklch(0.55 0.12 300)" />
+          <stop offset="100%" stop-color="oklch(0.82 0.16 70)" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="300" fill="oklch(0.12 0.01 265)" rx="10" />
+      <polygon points="200,22 376,278 24,278" fill="url(#hero-gap)" opacity="0.92" />
+      <line
+        x1="40"
+        y1={bandY}
+        x2="360"
+        y2={bandY}
+        stroke="oklch(0.1 0.01 265)"
+        stroke-width="3"
+        stroke-dasharray="6 5"
+      />
+      <line
+        x1="40"
+        y1={bandY + 14}
+        x2="360"
+        y2={bandY + 14}
+        stroke="oklch(0.98 0.01 90)"
+        stroke-width="1"
+        opacity="0.7"
+      />
+    </svg>
+  {/if}
+  <p class="scene-caption">
+    Gap sketch · <span class="tabular">{backend === 'detecting' ? 'detecting' : backend}</span>
+  </p>
+</div>
+
+<style>
+  .scene {
+    position: relative;
+    margin: 0.5rem 0 1rem;
+    overflow: hidden;
+    background: oklch(0.12 0.01 265);
+  }
+
+  canvas,
+  svg {
+    display: block;
+    width: 100%;
+    height: clamp(220px, 32vh, 320px);
+  }
+
+  .scene-caption {
+    position: absolute;
+    left: 0.9rem;
+    bottom: 0.7rem;
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: color-mix(in oklch, var(--ink), transparent 35%);
+    text-shadow: 0 1px 4px oklch(0 0 0 / 0.6);
+  }
+</style>

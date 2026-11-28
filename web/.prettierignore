@@ -1,6 +1,10 @@
 .svelte-kit
 build
+.lighthouseci
+.scratch
 static/wasm
+static/data
+static/weights
 test-results
 playwright-report
 package-lock.json
