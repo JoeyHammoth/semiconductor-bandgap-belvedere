@@ -1,0 +1,37 @@
+name: docs
+
+on:
+  pull_request:
+    paths:
+      - "**/*.md"
+      - ".github/workflows/docs-check.yml"
+  push:
+    branches: [main]
+    paths:
+      - "**/*.md"
+      - ".github/workflows/docs-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    name: links
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Markdown links
+        uses: lycheeverse/lychee-action@v2.9.0
+        with:
+          # source/ is immutable coursework material: its links are not ours to fix.
+          # AIP (10.1063, 10.1119) and APS (10.1103) return 403 to datacentre IPs
+          # from any user agent, so their DOI prefixes are excluded. Every other
+          # DOI is still resolved, including the Elsevier one.
+          args: >-
+            --no-progress --verbose --max-retries 2 --timeout 20
+            --user-agent 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
+            --exclude-path source
+            --exclude '^https://doi\.org/10\.(1063|1103|1119)/'
+            './**/*.md'
+          fail: true
+          token: ${{ github.token }}
