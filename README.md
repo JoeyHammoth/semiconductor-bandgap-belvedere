@@ -136,7 +136,7 @@ Eight phases; the MVP is v0.1.0 at the end of Phase 3.
 | 6 | Band structure, DOS, LED colour, Bose–Einstein evidence |
 | 7 | Tour, share card, cross-browser, stretch goals |
 
-Issues and acceptance criteria live in the [project board](https://github.com/users/JoeyHammoth/projects/4) and in [`docs/roadmap.md`](docs/roadmap.md).
+Issues and acceptance criteria live in the [epics](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues?q=label%3A%22type%3Aepic%22) and in [`docs/roadmap.md`](docs/roadmap.md).
 
 ## Free-tier constraints that shaped the design
 

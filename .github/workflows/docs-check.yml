@@ -26,6 +26,7 @@ jobs:
           # source/ is immutable coursework material: its links are not ours to fix.
           args: >-
             --no-progress --verbose --max-retries 2 --timeout 20
+            --user-agent 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
             --exclude-path source './**/*.md'
           fail: true
           token: ${{ github.token }}
