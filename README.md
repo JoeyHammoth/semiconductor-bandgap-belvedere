@@ -169,4 +169,4 @@ Contributions are welcome: docs fixes, tests, accessibility work and small featu
 
 ## Licence
 
-MIT for code and original writing — see [`LICENSE`](LICENSE). Third-party assets and their terms are listed in [`docs/licences.md`](docs/licences.md).
+MIT for code and original writing — see [`LICENSE`](LICENSE). Recorded data, the lab report, the source figures and third-party assets are excluded by [`NOTICE`](NOTICE); their terms are listed in [`docs/licences.md`](docs/licences.md).

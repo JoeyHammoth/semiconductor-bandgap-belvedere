@@ -4,7 +4,7 @@ Track every third-party asset and dependency that ships to the browser. Record t
 
 ## 1. Project licence
 
-Source code and original written material: MIT (see [`LICENSE`](../LICENSE)). There is no recorded dataset to license: the original runs were lost. The source report and figures are **not** covered by the MIT grant and are not redistributed; their terms are tracked in [`data.md`](data.md).
+Source code and original written material: MIT (see [`LICENSE`](../LICENSE)). The exclusions are stated in [`NOTICE`](../NOTICE): no recorded dataset is published (the original runs were lost, ADR 0006), and the source report and figures are **not** covered by the MIT grant and are not redistributed. Their terms are tracked in [`data.md`](data.md), and the decision to keep `LICENSE` unmodified is [ADR 0015](adr/0015-licence-representation.md).
 
 ## 2. Fonts
 

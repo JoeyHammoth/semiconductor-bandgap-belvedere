@@ -1,0 +1,19 @@
+Band-Gap Observatory
+Copyright (c) 2026 James Nikolas Putradi
+
+The MIT licence in LICENSE covers the source code and the original written
+material in this repository.
+
+It does not cover:
+
+- Any recorded dataset. None is published: the original PHYC30021 runs were
+  lost, and data/ holds schema and manifest slots only. The decision is
+  recorded in docs/adr/0006-no-recorded-dataset.md.
+- The lab report, handout and figures under source/. They are coursework
+  material, cited and referenced but not redistributed, and remain subject to
+  their own terms. Provenance and limits are in docs/data.md.
+- Third-party fonts, libraries, data and figures. Their licences and
+  attribution requirements are listed in docs/licences.md.
+
+If you redistribute this repository or a substantial part of it, ship this
+NOTICE alongside LICENSE.
