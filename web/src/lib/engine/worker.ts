@@ -220,6 +220,9 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             dmdRelativeResidual: output.dmd_relative_residual,
             dmdMaxRelativeError: output.dmd_max_relative_error,
             greyboxTauS: output.greybox_tau_s,
+            greyboxTauLowS: output.greybox_tau_low_s,
+            greyboxTauHighS: output.greybox_tau_high_s,
+            greyboxBootstrapReplicates: output.greybox_bootstrap_replicates,
             greyboxMaxRelativeError: output.greybox_max_relative_error,
             greyboxOutputRmsK: output.greybox_output_rms_k,
             sampleCount: output.sample_count,
@@ -248,6 +251,8 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             value.dmdTauHighS.buffer as ArrayBuffer,
             value.dmdFrequencyRadS.buffer as ArrayBuffer,
             value.greyboxTauS.buffer as ArrayBuffer,
+            value.greyboxTauLowS.buffer as ArrayBuffer,
+            value.greyboxTauHighS.buffer as ArrayBuffer,
           ]);
         } finally {
           output.free();

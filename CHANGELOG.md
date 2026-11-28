@@ -13,7 +13,9 @@
 - Jeffreys hyperprior over the Matérn length and signal scales, fitted on an 8 × 6 grid with a moment-matched mixture and a reported 95% predictive coverage (95.6% on the default run).
 - S6 residual strip plotting the post-smoother residual, the smoothed discrepancy and its 1σ band on a magnified axis.
 - DMDc 5–95% modal bands from 64 parametric-bootstrap refits of the fitted ARX model, shown beside each time constant on S6.
-- Grey-box output-error fit of the thermal chain (Levenberg–Marquardt on log time constants), shown beside DMDc on S6 as a cross-check that separates the blind fit's errors-in-variables bias from the chain itself.
+- Grey-box output-error fit of the thermal chain (Levenberg–Marquardt on log time constants and the initial temperature), shown beside DMDc on S6 as a cross-check that separates the blind fit's errors-in-variables bias from the chain itself.
+- 5–95% grey-box modal bands from 64 residual-bootstrap refits; the configured constant falls inside 13 of 15 seed × mode bands.
+- S6 mode ladder under the plot draws both estimators' time constants and bands on a log axis.
 - S6 accessible trace table now carries the RTS and Matérn 1σ columns drawn on the canvas.
 
 ### Changed

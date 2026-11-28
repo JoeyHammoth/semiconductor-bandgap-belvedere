@@ -166,9 +166,10 @@ a 5–95% band from 64 parametric-bootstrap refits of the fitted model; the heat
 and is not the limiting factor ([ADR 0013](adr/0013-dmdc-modal-bands.md)). That band is conditional on
 one trace: it is 2.2–6.7× wider than the seed-to-seed spread, so it is a sensitivity band rather than
 a cross-trace interval. A grey-box output-error fit of the same chain, which assumes the structure
-instead of identifying it, recovers the fastest pole to 4.2% worst case against 34.8% for the blind
-fit, which locates the residual error in the errors-in-variables bias
-([ADR 0014](adr/0014-greybox-and-dmdc-band-meaning.md)). See
+instead of identifying it, recovers the fastest pole to 2.9% worst case against 34.8% for the blind
+fit, which locates the residual error in the errors-in-variables bias. Its 5–95% band comes from 64
+residual-bootstrap refits and is conditional on the structure; it contains the configured constant
+in 13 of 15 seed × mode cases ([ADR 0014](adr/0014-greybox-and-dmdc-band-meaning.md)). See
 [ADR 0010](adr/0010-dmdc-and-marginal-likelihood.md) and
 [ADR 0011](adr/0011-multi-pulse-schedule-and-matern-state.md).
 

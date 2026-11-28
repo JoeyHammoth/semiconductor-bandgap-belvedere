@@ -1501,6 +1501,9 @@ pub struct ThermalTwinOutput {
     dmd_relative_residual: f64,
     dmd_max_relative_error: f64,
     greybox_tau_s: Vec<f64>,
+    greybox_tau_low_s: Vec<f64>,
+    greybox_tau_high_s: Vec<f64>,
+    greybox_bootstrap_replicates: u32,
     greybox_max_relative_error: f64,
     greybox_output_rms_k: f64,
     sample_count: u32,
@@ -1664,6 +1667,21 @@ impl ThermalTwinOutput {
     }
 
     #[wasm_bindgen(getter)]
+    pub fn greybox_tau_low_s(&self) -> Vec<f64> {
+        self.greybox_tau_low_s.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn greybox_tau_high_s(&self) -> Vec<f64> {
+        self.greybox_tau_high_s.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn greybox_bootstrap_replicates(&self) -> u32 {
+        self.greybox_bootstrap_replicates
+    }
+
+    #[wasm_bindgen(getter)]
     pub fn greybox_max_relative_error(&self) -> f64 {
         self.greybox_max_relative_error
     }
@@ -1745,6 +1763,9 @@ fn run_thermal_twin_impl(seed: u32) -> Result<ThermalTwinOutput, String> {
         dmd_relative_residual: modes.relative_residual,
         dmd_max_relative_error: modes.max_relative_error,
         greybox_tau_s: greybox.time_constants_s,
+        greybox_tau_low_s: greybox.time_constant_low_s,
+        greybox_tau_high_s: greybox.time_constant_high_s,
+        greybox_bootstrap_replicates: greybox.bootstrap_replicates as u32,
         greybox_max_relative_error: greybox.max_relative_error,
         greybox_output_rms_k: greybox.output_rms_k,
         lag_tau_s: run.lag_tau_s,
@@ -1938,7 +1959,19 @@ mod tests {
         assert!(output.dmd_max_relative_error() < 0.2);
         assert!(output.dmd_relative_residual() < 0.1);
         assert_eq!(output.greybox_tau_s().len(), 3);
+        assert_eq!(output.greybox_tau_low_s().len(), 3);
+        assert_eq!(output.greybox_tau_high_s().len(), 3);
+        assert!(output.greybox_bootstrap_replicates() >= 32);
         assert!(output.greybox_tau_s().iter().all(|tau| *tau > 0.0));
+        for ((low, high), tau) in output
+            .greybox_tau_low_s()
+            .iter()
+            .zip(output.greybox_tau_high_s())
+            .zip(output.greybox_tau_s())
+        {
+            assert!(low.is_finite() && high.is_finite());
+            assert!(*low <= tau && tau <= high);
+        }
         assert!(output.greybox_max_relative_error() < 0.05);
         assert!(output.greybox_output_rms_k() < 0.1);
     }

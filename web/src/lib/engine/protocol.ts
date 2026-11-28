@@ -165,6 +165,10 @@ export interface ThermalTwinResult {
   dmdMaxRelativeError: number;
   /** Time constants from a grey-box output-error fit of the same chain. */
   greyboxTauS: Float64Array;
+  /** 5th and 95th percentile of a residual bootstrap, per mode. */
+  greyboxTauLowS: Float64Array;
+  greyboxTauHighS: Float64Array;
+  greyboxBootstrapReplicates: number;
   greyboxMaxRelativeError: number;
   greyboxOutputRmsK: number;
   sampleCount: number;
@@ -398,6 +402,9 @@ export interface WasmThermalTwinOutput {
   readonly dmd_relative_residual: number;
   readonly dmd_max_relative_error: number;
   readonly greybox_tau_s: Float64Array;
+  readonly greybox_tau_low_s: Float64Array;
+  readonly greybox_tau_high_s: Float64Array;
+  readonly greybox_bootstrap_replicates: number;
   readonly greybox_max_relative_error: number;
   readonly greybox_output_rms_k: number;
   readonly sample_count: number;

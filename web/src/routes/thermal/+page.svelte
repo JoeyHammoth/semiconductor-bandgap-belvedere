@@ -46,7 +46,17 @@
       : '',
   );
   const greyBoxModes = $derived(
-    result ? Array.from(result.greyboxTauS, (tau) => tau.toFixed(0)).join(' · ') : '',
+    result
+      ? Array.from(result.greyboxTauS, (tau, index) => {
+          const low = result!.greyboxTauLowS[index];
+          const high = result!.greyboxTauHighS[index];
+          const band =
+            Number.isFinite(low) && Number.isFinite(high)
+              ? ` (${low.toFixed(0)}–${high.toFixed(0)})`
+              : '';
+          return `${tau.toFixed(1)}${band}`;
+        }).join(' · ')
+      : '',
   );
   const lagError = $derived(
     result
@@ -106,12 +116,16 @@
     const sensorColour = 'oklch(0.82 0.15 40)';
     const smootherColour = 'oklch(0.72 0.12 260)';
     const discrepancyColour = 'oklch(0.78 0.11 160)';
+    const greyboxColour = 'oklch(0.86 0.1 90)';
 
     const margin = { left: 58, right: 18, top: 24, bottom: 48 };
     const plotWidth = width - margin.left - margin.right;
-    const stripGap = 30;
-    const stripHeight = Math.max(56, Math.round((height - margin.top - margin.bottom) * 0.26));
-    const plotHeight = height - margin.top - margin.bottom - stripHeight - stripGap;
+    const available = height - margin.top - margin.bottom;
+    const stripGap = 26;
+    const ladderGap = 22;
+    const ladderHeight = 72;
+    const stripHeight = Math.max(52, Math.round(available * 0.2));
+    const plotHeight = available - stripHeight - stripGap - ladderHeight - ladderGap;
     const values = [
       ...result.plateK,
       ...result.junctionK,
@@ -259,6 +273,80 @@
     context.fillStyle = dim;
     context.fillText(`residual ±${extent.toFixed(2)} K`, 6, stripTop + 12);
 
+    // Mode ladder: both estimators' time constants and their 5–95% bands on a
+    // log axis, so the modal comparison lives on the plot and not only in cards.
+    const ladderTop = stripTop + stripHeight + ladderGap;
+    const ladderTaus = [
+      ...result.dmdTauS,
+      ...result.dmdTauLowS,
+      ...result.dmdTauHighS,
+      ...result.greyboxTauS,
+      ...result.greyboxTauLowS,
+      ...result.greyboxTauHighS,
+    ].filter((value) => Number.isFinite(value) && value > 0);
+    const domainLow = ladderTaus.length ? Math.min(...ladderTaus) * 0.8 : 10;
+    const domainHigh = ladderTaus.length ? Math.max(...ladderTaus) * 1.25 : 1000;
+    const mx = (tau: number) =>
+      margin.left +
+      (Math.log(tau / domainLow) / Math.log(domainHigh / domainLow)) * plotWidth;
+    const rowCount = Math.min(result.dmdTauS.length, result.greyboxTauS.length);
+    context.strokeStyle = hair;
+    context.lineWidth = 1;
+    context.strokeRect(margin.left, ladderTop, plotWidth, ladderHeight);
+    context.fillStyle = dim;
+    context.fillText('τ (s, log)', 6, ladderTop + 11);
+    for (let index = 0; index < rowCount; index += 1) {
+      const y = ladderTop + 18 + index * 16;
+      context.globalAlpha = 0.18;
+      context.strokeStyle = hair;
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(mx(domainLow), y);
+      context.lineTo(mx(domainHigh), y);
+      context.stroke();
+      context.globalAlpha = 1;
+      const dmdLow = result.dmdTauLowS[index];
+      const dmdHigh = result.dmdTauHighS[index];
+      if (Number.isFinite(dmdLow) && Number.isFinite(dmdHigh)) {
+        context.strokeStyle = accent;
+        context.lineWidth = 5;
+        context.beginPath();
+        context.moveTo(mx(dmdLow), y);
+        context.lineTo(mx(dmdHigh), y);
+        context.stroke();
+      }
+      const greyLow = result.greyboxTauLowS[index];
+      const greyHigh = result.greyboxTauHighS[index];
+      if (Number.isFinite(greyLow) && Number.isFinite(greyHigh)) {
+        context.strokeStyle = greyboxColour;
+        context.lineWidth = 3;
+        context.beginPath();
+        context.moveTo(mx(greyLow), y);
+        context.lineTo(mx(greyHigh), y);
+        context.stroke();
+      }
+      context.fillStyle = accent;
+      context.beginPath();
+      context.arc(mx(result.dmdTauS[index]), y, 3, 0, Math.PI * 2);
+      context.fill();
+      context.strokeStyle = greyboxColour;
+      context.lineWidth = 1.5;
+      context.strokeRect(mx(result.greyboxTauS[index]) - 2.5, y - 2.5, 5, 5);
+      context.fillStyle = dim;
+      context.fillText(`m${index + 1}`, 8, y + 3);
+    }
+    for (const tick of [20, 50, 100, 200, 400, 800]) {
+      if (tick < domainLow || tick > domainHigh) continue;
+      const x = mx(tick);
+      context.strokeStyle = hair;
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(x, ladderTop + ladderHeight - 20);
+      context.lineTo(x, ladderTop + ladderHeight - 16);
+      context.stroke();
+      context.fillText(`${tick}`, x - 8, ladderTop + ladderHeight - 5);
+    }
+
     context.fillStyle = ink;
     context.fillText('time (s)', margin.left + plotWidth / 2 - 24, height - 6);
     context.save();
@@ -348,7 +436,9 @@
             synthetic observations. Dashed blue: RTS-smoothed junction. Bands: RTS 1σ around the
             junction and the GP residual 1σ around the sensor. Bottom strip: the post-smoother
             sensor residual as dots, with the smoothed Matérn-3/2 discrepancy (green line) and its
-            1σ band on a scale magnified to the residual.
+            1σ band on a scale magnified to the residual. Bottom ladder: fitted time constants on a
+            log scale — filled bars and dots are DMDc with its 5–95% band, thin bars and open
+            squares are the grey-box fit with its residual-bootstrap band.
           </figcaption>
         </figure>
         <div class="metrics">
@@ -399,7 +489,7 @@
             </strong>
           </p>
           <p data-testid="thermal-greybox">
-            <span class="label">Grey-box τ (OE fit)</span>
+            <span class="label">Grey-box τ (5–95% band)</span>
             <strong class="tabular">{greyBoxModes} s</strong>
           </p>
         </div>
@@ -464,7 +554,9 @@
           identifying it, returns
           <span class="tabular">{greyBoxModes} s</span> (worst modal error
           <span class="tabular">{(result.greyboxMaxRelativeError * 100).toFixed(1)}%</span>,
-          output-error RMS <span class="tabular">{result.greyboxOutputRmsK.toFixed(3)} K</span>).
+          output-error RMS <span class="tabular">{result.greyboxOutputRmsK.toFixed(3)} K</span>,
+          bands from <span class="tabular">{result.greyboxBootstrapReplicates}</span>
+          residual-bootstrap refits).
           It recovers the sensor pole that the blind ARX fit biases; it is shown beside DMDc rather
           than replacing it, because it only validates the chain it already assumes.
         </p>
@@ -628,7 +720,7 @@
   }
   canvas {
     width: 100%;
-    height: 440px;
+    height: 520px;
     background: var(--surface);
     border: var(--hairline);
     border-radius: var(--radius);

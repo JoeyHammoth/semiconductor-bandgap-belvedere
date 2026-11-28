@@ -16,6 +16,7 @@ test('S6 runs the Rust thermal twin and reports the recovered lag', async ({ pag
   await expect(page.getByTestId('thermal-likelihood')).toContainText('Kalman log-likelihood');
   await expect(page.getByTestId('thermal-modes')).toContainText('DMDc τ');
   await expect(page.getByTestId('thermal-greybox')).toContainText('Grey-box τ');
+  await expect(page.getByTestId('thermal-greybox')).toContainText(/\(\d+–\d+\)/);
   await expect(page.getByRole('table', { name: /S6 accessible equivalent/i })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'RTS 1σ (K)' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'Matérn 1σ (mK)' })).toBeVisible();
