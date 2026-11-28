@@ -13,11 +13,14 @@
 - Jeffreys hyperprior over the Matérn length and signal scales, fitted on an 8 × 6 grid with a moment-matched mixture and a reported 95% predictive coverage (95.6% on the default run).
 - S6 residual strip plotting the post-smoother residual, the smoothed discrepancy and its 1σ band on a magnified axis.
 - DMDc 5–95% modal bands from 64 parametric-bootstrap refits of the fitted ARX model, shown beside each time constant on S6.
+- Grey-box output-error fit of the thermal chain (Levenberg–Marquardt on log time constants), shown beside DMDc on S6 as a cross-check that separates the blind fit's errors-in-variables bias from the chain itself.
+- S6 accessible trace table now carries the RTS and Matérn 1σ columns drawn on the canvas.
 
 ### Changed
 
 - DMDc keeps ordinary least squares: two-stage and total least squares were measured against it and both made the modal estimate worse; a new unit test pins the noise-free recovery.
 - Offline-navigation Playwright coverage for the PWA service worker.
+- The DMDc bootstrap band is documented as a single-trace sensitivity band: it is 2.2–6.7× wider than the seed-to-seed spread and is not a cross-trace confidence interval.
 
 ### Fixed
 

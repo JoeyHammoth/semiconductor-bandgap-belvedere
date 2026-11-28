@@ -24,8 +24,10 @@
             sensor: result!.sensorK[point],
             observed: result!.observedK[point],
             rts: result!.rtsJunctionK[point],
+            rtsSd: result!.rtsSdK[point],
             gp: result!.gpMeanK[point],
             matern: result!.maternMeanK[point],
+            maternSd: result!.maternSdK[point],
           };
         })
       : [],
@@ -42,6 +44,9 @@
           return `${tau.toFixed(0)}${band}`;
         }).join(' · ')
       : '',
+  );
+  const greyBoxModes = $derived(
+    result ? Array.from(result.greyboxTauS, (tau) => tau.toFixed(0)).join(' · ') : '',
   );
   const lagError = $derived(
     result
@@ -318,7 +323,7 @@
         <h2 id="run-title">Run the thermal twin</h2>
         <p class="caveat">
           Synthetic only. This is not the lost lab trace; the GP uses fixed RBF hyperparameters and
-          the Matérn discrepancy a fixed length scale and signal scale, both as diagnostics rather
+          the Matérn discrepancy a grid-fitted length and signal scale, both as diagnostics rather
           than calibrated physical models.
         </p>
       </div>
@@ -393,9 +398,16 @@
               {dmdModes} s
             </strong>
           </p>
+          <p data-testid="thermal-greybox">
+            <span class="label">Grey-box τ (OE fit)</span>
+            <strong class="tabular">{greyBoxModes} s</strong>
+          </p>
         </div>
         <table class="trace-table" data-testid="thermal-table">
-          <caption>S6 accessible equivalent: synthetic thermal state every 200 s</caption>
+          <caption>
+            S6 accessible equivalent: synthetic thermal state every 200 s, with the RTS and Matérn
+            1σ bands drawn on the plot
+          </caption>
           <thead>
             <tr>
               <th scope="col">Time (s)</th>
@@ -404,8 +416,10 @@
               <th scope="col">Sensor (K)</th>
               <th scope="col">Observed (K)</th>
               <th scope="col">RTS junction (K)</th>
+              <th scope="col">RTS 1σ (K)</th>
               <th scope="col">GP mean (K)</th>
               <th scope="col">Matérn mean (mK)</th>
+              <th scope="col">Matérn 1σ (mK)</th>
             </tr>
           </thead>
           <tbody>
@@ -417,8 +431,10 @@
                 <td class="tabular">{row.sensor.toFixed(2)}</td>
                 <td class="tabular">{row.observed.toFixed(2)}</td>
                 <td class="tabular">{row.rts.toFixed(2)}</td>
+                <td class="tabular">{row.rtsSd.toFixed(3)}</td>
                 <td class="tabular">{row.gp.toFixed(3)}</td>
                 <td class="tabular">{(row.matern * 1000).toFixed(1)}</td>
+                <td class="tabular">{(row.maternSd * 1000).toFixed(1)}</td>
               </tr>
             {/each}
           </tbody>
@@ -443,7 +459,14 @@
           come from
           <span class="tabular">{result.dmdBootstrapReplicates}</span> parametric-bootstrap refits of
           the fitted model over the trace; the middle and fastest poles are the least certain, so
-          this is a diagnostic, not an identification claim.
+          this is a diagnostic, not an identification claim. A grey-box output-error fit of the same
+          chain, which assumes the three-state structure and the known heater schedule instead of
+          identifying it, returns
+          <span class="tabular">{greyBoxModes} s</span> (worst modal error
+          <span class="tabular">{(result.greyboxMaxRelativeError * 100).toFixed(1)}%</span>,
+          output-error RMS <span class="tabular">{result.greyboxOutputRmsK.toFixed(3)} K</span>).
+          It recovers the sensor pole that the blind ARX fit biases; it is shown beside DMDc rather
+          than replacing it, because it only validates the chain it already assumes.
         </p>
       </section>
     {/if}
@@ -456,8 +479,11 @@
         the full trace. The GP is fitted to the post-smoother residual with fixed RBF
         hyperparameters. The Kalman marginal likelihood is the filter's own predictive
         log-density, not a model-evidence estimate. Hankel-DMDc reports damping constants from a
-        delay embedding. The Matérn-3/2 discrepancy is carried as a two-state latent SDE with fixed
-        hyperparameters, so it is a stated prior on the residual rather than a learned model.
+        delay embedding. The Matérn-3/2 discrepancy is carried as a two-state latent SDE whose
+        length and signal scales are fitted on a grid hyperprior, so the discrepancy is a state of
+        the model rather than a kernel fit. The grey-box fit is the opposite trade: it assumes the
+        chain structure to remove the errors-in-variables bias, so it cannot discover a structure
+        the chain does not have.
       </p>
     </section>
   </main>

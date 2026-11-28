@@ -558,6 +558,55 @@ mod tests {
     }
 
     #[test]
+    fn bootstrap_band_is_measured_against_the_seed_spread() {
+        // A single-trace interval only measures sensitivity to that trace's noise
+        // draw. If it were far narrower than the spread of point estimates across
+        // traces, the reported band would read as more repeatable than the
+        // estimator is, so the two are compared rather than assumed equal.
+        let mut points = vec![Vec::new(); STATES];
+        let mut widths = vec![Vec::new(); STATES];
+        let mut truth = Vec::new();
+        for seed in [1_u64, 7, 42, 0x5eed_7e11, 12_345] {
+            let config = ThermalConfig {
+                seed,
+                ..ThermalConfig::default()
+            };
+            let run = simulate_thermal(&config).expect("thermal trace");
+            let modes = estimate_thermal_modes(&config, &run.time_s, &run.observed_k)
+                .expect("thermal modes");
+            truth = modes.true_time_constants_s.clone();
+            for index in 0..modes.time_constants_s.len().min(STATES) {
+                points[index].push(modes.time_constants_s[index]);
+                widths[index]
+                    .push(modes.time_constant_high_s[index] - modes.time_constant_low_s[index]);
+            }
+        }
+        for index in 0..STATES {
+            let low = points[index].iter().copied().fold(f64::INFINITY, f64::min);
+            let high = points[index]
+                .iter()
+                .copied()
+                .fold(f64::NEG_INFINITY, f64::max);
+            let span = high - low;
+            let band = median(&widths[index]);
+            println!(
+                "mode {index}: truth {:.1} s, seeds {:.1}–{:.1} s (span {:.1}), median band {:.1}, ratio {:.2}",
+                truth[index],
+                low,
+                high,
+                span,
+                band,
+                span / band
+            );
+            assert!(band.is_finite() && band > 0.0);
+            assert!(
+                span <= 3.0 * band,
+                "mode {index} seed spread {span:.1} s exceeds three times the median band {band:.1} s"
+            );
+        }
+    }
+
+    #[test]
     fn recovers_the_chain_exactly_without_measurement_noise() {
         // The residual error of the noisy estimate is the observation noise, not
         // the fit: on a noiseless trace the same regression returns the
@@ -575,6 +624,12 @@ mod tests {
             modes.time_constants_s,
             modes.true_time_constants_s
         );
+    }
+
+    fn median(values: &[f64]) -> f64 {
+        let mut sorted = values.to_vec();
+        sorted.sort_by(f64::total_cmp);
+        sorted[sorted.len() / 2]
     }
 
     #[test]

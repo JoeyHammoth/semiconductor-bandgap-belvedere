@@ -55,3 +55,5 @@ model-structure error, so it understates the uncertainty if the true device is n
 - The coverage claim for the fitted Matérn band is now checked on five traces rather than one
   (`ukf::tests::matern_coverage_holds_across_seeds`).
 - No measured data is introduced; the synthetic labels remain mandatory.
+- [ADR 0014](0014-greybox-and-dmdc-band-meaning.md) measures this band against the seed-to-seed
+  spread and adds a grey-box cross-check for the fastest pole.

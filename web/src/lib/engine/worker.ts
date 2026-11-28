@@ -219,6 +219,9 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             dmdFrequencyRadS: output.dmd_frequency_rad_s,
             dmdRelativeResidual: output.dmd_relative_residual,
             dmdMaxRelativeError: output.dmd_max_relative_error,
+            greyboxTauS: output.greybox_tau_s,
+            greyboxMaxRelativeError: output.greybox_max_relative_error,
+            greyboxOutputRmsK: output.greybox_output_rms_k,
             sampleCount: output.sample_count,
             lagTauS: output.lag_tau_s,
             trueTauS: output.true_tau_s,
@@ -244,6 +247,7 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             value.dmdTauLowS.buffer as ArrayBuffer,
             value.dmdTauHighS.buffer as ArrayBuffer,
             value.dmdFrequencyRadS.buffer as ArrayBuffer,
+            value.greyboxTauS.buffer as ArrayBuffer,
           ]);
         } finally {
           output.free();

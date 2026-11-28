@@ -6,6 +6,7 @@
 //!   the Kalman marginal likelihood
 //! - `matern`: Matern-3/2 Gaussian process as a linear SDE state
 //! - `dmd`: Hankel-DMDc time constants from the delay-embedded trace
+//! - `greybox`: output-error identification of the chain time constants
 //!
 //! Boundaries: this crate must stay free of I/O and of browser APIs so that it
 //! can be unit-tested on the host and linked into `bgo-wasm`.
@@ -15,11 +16,13 @@
 mod rng;
 
 pub mod dmd;
+pub mod greybox;
 pub mod matern;
 pub mod thermal;
 pub mod ukf;
 
 pub use dmd::{estimate_thermal_modes, ThermalModes};
+pub use greybox::{fit_output_error, GreyBoxFit};
 pub use matern::{matern_discrepancy, matern_posterior, MaternDiscrepancy, MaternPosterior};
 pub use thermal::{heater_target_k, simulate_thermal, HeatPulse, ThermalConfig, ThermalRun};
 pub use ukf::{estimate_thermal, smooth_thermal, ThermalEstimate};

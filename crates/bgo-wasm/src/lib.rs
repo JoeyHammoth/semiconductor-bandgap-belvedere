@@ -13,7 +13,9 @@ use bgo_infer::{
 use bgo_info::{analyze_fisher, covariance_ellipse, fisher_from_jacobian};
 use bgo_nn::Flow;
 use bgo_ot::sliced_wasserstein_2;
-use bgo_ssm::{estimate_thermal_modes, simulate_thermal, smooth_thermal, ThermalConfig};
+use bgo_ssm::{
+    estimate_thermal_modes, fit_output_error, simulate_thermal, smooth_thermal, ThermalConfig,
+};
 use wasm_bindgen::prelude::*;
 
 /// Core version, rendered in the status bar.
@@ -1498,6 +1500,9 @@ pub struct ThermalTwinOutput {
     dmd_frequency_rad_s: Vec<f64>,
     dmd_relative_residual: f64,
     dmd_max_relative_error: f64,
+    greybox_tau_s: Vec<f64>,
+    greybox_max_relative_error: f64,
+    greybox_output_rms_k: f64,
     sample_count: u32,
     lag_tau_s: f64,
     true_tau_s: f64,
@@ -1654,6 +1659,21 @@ impl ThermalTwinOutput {
     }
 
     #[wasm_bindgen(getter)]
+    pub fn greybox_tau_s(&self) -> Vec<f64> {
+        self.greybox_tau_s.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn greybox_max_relative_error(&self) -> f64 {
+        self.greybox_max_relative_error
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn greybox_output_rms_k(&self) -> f64 {
+        self.greybox_output_rms_k
+    }
+
+    #[wasm_bindgen(getter)]
     pub fn sample_count(&self) -> u32 {
         self.sample_count
     }
@@ -1692,6 +1712,7 @@ fn run_thermal_twin_impl(seed: u32) -> Result<ThermalTwinOutput, String> {
     let run = simulate_thermal(&config)?;
     let estimate = smooth_thermal(&config, &run)?;
     let modes = estimate_thermal_modes(&config, &run.time_s, &run.observed_k)?;
+    let greybox = fit_output_error(&config, &run.time_s, &run.observed_k)?;
     Ok(ThermalTwinOutput {
         sample_count: run.time_s.len() as u32,
         time_s: run.time_s,
@@ -1723,6 +1744,9 @@ fn run_thermal_twin_impl(seed: u32) -> Result<ThermalTwinOutput, String> {
         dmd_frequency_rad_s: modes.frequencies_rad_s,
         dmd_relative_residual: modes.relative_residual,
         dmd_max_relative_error: modes.max_relative_error,
+        greybox_tau_s: greybox.time_constants_s,
+        greybox_max_relative_error: greybox.max_relative_error,
+        greybox_output_rms_k: greybox.output_rms_k,
         lag_tau_s: run.lag_tau_s,
         true_tau_s: run.true_tau_s,
         max_lag_k: run.max_lag_k,
@@ -1913,6 +1937,10 @@ mod tests {
         assert!(output.dmd_tau_s().iter().all(|tau| *tau > 0.0));
         assert!(output.dmd_max_relative_error() < 0.2);
         assert!(output.dmd_relative_residual() < 0.1);
+        assert_eq!(output.greybox_tau_s().len(), 3);
+        assert!(output.greybox_tau_s().iter().all(|tau| *tau > 0.0));
+        assert!(output.greybox_max_relative_error() < 0.05);
+        assert!(output.greybox_output_rms_k() < 0.1);
     }
 
     #[test]

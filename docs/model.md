@@ -163,7 +163,12 @@ includes the control terms. The regression stays ordinary least squares: two-sta
 squares were both measured and both were worse, and a noiseless trace is recovered to 1e-7
 ([ADR 0012](adr/0012-dmdc-noise-sensitivity-and-matern-hyperprior.md)). Each mode is reported with
 a 5–95% band from 64 parametric-bootstrap refits of the fitted model; the heater amplitude was swept
-and is not the limiting factor ([ADR 0013](adr/0013-dmdc-modal-bands.md)). See
+and is not the limiting factor ([ADR 0013](adr/0013-dmdc-modal-bands.md)). That band is conditional on
+one trace: it is 2.2–6.7× wider than the seed-to-seed spread, so it is a sensitivity band rather than
+a cross-trace interval. A grey-box output-error fit of the same chain, which assumes the structure
+instead of identifying it, recovers the fastest pole to 4.2% worst case against 34.8% for the blind
+fit, which locates the residual error in the errors-in-variables bias
+([ADR 0014](adr/0014-greybox-and-dmdc-band-meaning.md)). See
 [ADR 0010](adr/0010-dmdc-and-marginal-likelihood.md) and
 [ADR 0011](adr/0011-multi-pulse-schedule-and-matern-state.md).
 

@@ -163,6 +163,10 @@ export interface ThermalTwinResult {
   dmdFrequencyRadS: Float64Array;
   dmdRelativeResidual: number;
   dmdMaxRelativeError: number;
+  /** Time constants from a grey-box output-error fit of the same chain. */
+  greyboxTauS: Float64Array;
+  greyboxMaxRelativeError: number;
+  greyboxOutputRmsK: number;
   sampleCount: number;
   lagTauS: number;
   trueTauS: number;
@@ -393,6 +397,9 @@ export interface WasmThermalTwinOutput {
   readonly dmd_frequency_rad_s: Float64Array;
   readonly dmd_relative_residual: number;
   readonly dmd_max_relative_error: number;
+  readonly greybox_tau_s: Float64Array;
+  readonly greybox_max_relative_error: number;
+  readonly greybox_output_rms_k: number;
   readonly sample_count: number;
   readonly lag_tau_s: number;
   readonly true_tau_s: number;
