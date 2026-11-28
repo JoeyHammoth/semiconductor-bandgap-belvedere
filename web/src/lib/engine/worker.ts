@@ -11,6 +11,7 @@ import type {
   Response,
   SamplerResult,
   SvgdComparisonResult,
+  ThermalTwinResult,
 } from './protocol';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
@@ -179,6 +180,79 @@ ctx.onmessage = async (event: MessageEvent<Request>) => {
             value.livePositions.buffer as ArrayBuffer,
             value.priorLow.buffer as ArrayBuffer,
             value.priorHigh.buffer as ArrayBuffer,
+          ]);
+        } finally {
+          output.free();
+        }
+        break;
+      }
+      case 'thermal': {
+        const output = module.run_thermal_twin(request.seed);
+        try {
+          const value: ThermalTwinResult = {
+            timeS: output.time_s,
+            plateK: output.plate_k,
+            junctionK: output.junction_k,
+            sensorK: output.sensor_k,
+            observedK: output.observed_k,
+            ukfJunctionK: output.ukf_junction_k,
+            rtsJunctionK: output.rts_junction_k,
+            rtsSensorK: output.rts_sensor_k,
+            rtsSdK: output.rts_sd_k,
+            gpMeanK: output.gp_mean_k,
+            gpSdK: output.gp_sd_k,
+            maternMeanK: output.matern_mean_k,
+            maternSdK: output.matern_sd_k,
+            maternRmsK: output.matern_rms_k,
+            maternLengthScaleS: output.matern_length_scale_s,
+            maternSignalSdK: output.matern_signal_sd_k,
+            maternCoverage95: output.matern_coverage_95,
+            maternAtGridEdge: output.matern_at_grid_edge,
+            junctionRmseK: output.junction_rmse_k,
+            sensorRmseK: output.sensor_rmse_k,
+            gpRmsK: output.gp_rms_k,
+            kalmanLogLikelihood: output.kalman_log_likelihood,
+            dmdTauS: output.dmd_tau_s,
+            dmdTauLowS: output.dmd_tau_low_s,
+            dmdTauHighS: output.dmd_tau_high_s,
+            dmdBootstrapReplicates: output.dmd_bootstrap_replicates,
+            dmdFrequencyRadS: output.dmd_frequency_rad_s,
+            dmdRelativeResidual: output.dmd_relative_residual,
+            dmdMaxRelativeError: output.dmd_max_relative_error,
+            greyboxTauS: output.greybox_tau_s,
+            greyboxTauLowS: output.greybox_tau_low_s,
+            greyboxTauHighS: output.greybox_tau_high_s,
+            greyboxBootstrapReplicates: output.greybox_bootstrap_replicates,
+            greyboxMaxRelativeError: output.greybox_max_relative_error,
+            greyboxOutputRmsK: output.greybox_output_rms_k,
+            sampleCount: output.sample_count,
+            lagTauS: output.lag_tau_s,
+            trueTauS: output.true_tau_s,
+            maxLagK: output.max_lag_k,
+            ambientK: output.ambient_k,
+            heaterK: output.heater_k,
+          };
+          reply({ id: request.id, ok: true, kind: 'thermal', value }, [
+            value.timeS.buffer as ArrayBuffer,
+            value.plateK.buffer as ArrayBuffer,
+            value.junctionK.buffer as ArrayBuffer,
+            value.sensorK.buffer as ArrayBuffer,
+            value.observedK.buffer as ArrayBuffer,
+            value.ukfJunctionK.buffer as ArrayBuffer,
+            value.rtsJunctionK.buffer as ArrayBuffer,
+            value.rtsSensorK.buffer as ArrayBuffer,
+            value.rtsSdK.buffer as ArrayBuffer,
+            value.gpMeanK.buffer as ArrayBuffer,
+            value.gpSdK.buffer as ArrayBuffer,
+            value.maternMeanK.buffer as ArrayBuffer,
+            value.maternSdK.buffer as ArrayBuffer,
+            value.dmdTauS.buffer as ArrayBuffer,
+            value.dmdTauLowS.buffer as ArrayBuffer,
+            value.dmdTauHighS.buffer as ArrayBuffer,
+            value.dmdFrequencyRadS.buffer as ArrayBuffer,
+            value.greyboxTauS.buffer as ArrayBuffer,
+            value.greyboxTauLowS.buffer as ArrayBuffer,
+            value.greyboxTauHighS.buffer as ArrayBuffer,
           ]);
         } finally {
           output.free();

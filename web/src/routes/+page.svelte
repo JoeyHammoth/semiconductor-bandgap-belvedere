@@ -110,6 +110,7 @@
       <a href="evidence/">Evidence</a>
       <a href="ledger/">Ledger</a>
       <a href="npe/">Instant</a>
+      <a href="thermal/">Thermal</a>
       <a href="story/">Story</a>
       <a href="#honesty">Honesty</a>
       <a href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere#readme">Docs</a>
@@ -304,10 +305,11 @@
     <section class="next" aria-labelledby="n-title">
       <h2 id="n-title">Status</h2>
       <p>
-        Phase 2 — nested-sampling evidence, Fisher sloppiness, the SVGD swarm and the evidence
-        ledger are in place. The synthetic M0–M4 references, fail-closed diagnostics and MCLMC
-        remain the foundation. The original recordings no longer exist, so every scene uses labelled
-        simulated and report-anchored data. Full plan in
+        Phase 4 — the first thermal-twin slice is in place: a deterministic plate, junction and
+        sensor chain with a recovered lag, alongside the Phase 3 instant posterior and PWA shell.
+        The synthetic M0–M4 references, fail-closed diagnostics and MCLMC remain the foundation.
+        The original recordings no longer exist, so every scene uses labelled simulated and
+        report-anchored data. Full plan in
         <a
           href="https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/docs/roadmap.md"
         >
@@ -317,7 +319,7 @@
     </section>
   </main>
 
-  <StatusBar {backend} {core} phase="Phase 3" {commit} />
+  <StatusBar {backend} {core} phase="Phase 4" {commit} />
 </div>
 
 <style>

@@ -13,6 +13,9 @@ use bgo_infer::{
 use bgo_info::{analyze_fisher, covariance_ellipse, fisher_from_jacobian};
 use bgo_nn::Flow;
 use bgo_ot::sliced_wasserstein_2;
+use bgo_ssm::{
+    estimate_thermal_modes, fit_output_error, simulate_thermal, smooth_thermal, ThermalConfig,
+};
 use wasm_bindgen::prelude::*;
 
 /// Core version, rendered in the status bar.
@@ -1464,6 +1467,322 @@ pub fn run_npe(
         .map_err(|error| JsValue::from_str(&error))
 }
 
+/// First slice of the S6 thermal twin: plate, junction and sensor trajectories
+/// with a recovered sensor lag.
+#[wasm_bindgen]
+pub struct ThermalTwinOutput {
+    time_s: Vec<f64>,
+    plate_k: Vec<f64>,
+    junction_k: Vec<f64>,
+    sensor_k: Vec<f64>,
+    observed_k: Vec<f64>,
+    ukf_junction_k: Vec<f64>,
+    rts_junction_k: Vec<f64>,
+    rts_sensor_k: Vec<f64>,
+    rts_sd_k: Vec<f64>,
+    gp_mean_k: Vec<f64>,
+    gp_sd_k: Vec<f64>,
+    matern_mean_k: Vec<f64>,
+    matern_sd_k: Vec<f64>,
+    matern_rms_k: f64,
+    matern_length_scale_s: f64,
+    matern_signal_sd_k: f64,
+    matern_coverage_95: f64,
+    matern_at_grid_edge: bool,
+    junction_rmse_k: f64,
+    sensor_rmse_k: f64,
+    gp_rms_k: f64,
+    kalman_log_likelihood: f64,
+    dmd_tau_s: Vec<f64>,
+    dmd_tau_low_s: Vec<f64>,
+    dmd_tau_high_s: Vec<f64>,
+    dmd_bootstrap_replicates: u32,
+    dmd_frequency_rad_s: Vec<f64>,
+    dmd_relative_residual: f64,
+    dmd_max_relative_error: f64,
+    greybox_tau_s: Vec<f64>,
+    greybox_tau_low_s: Vec<f64>,
+    greybox_tau_high_s: Vec<f64>,
+    greybox_bootstrap_replicates: u32,
+    greybox_max_relative_error: f64,
+    greybox_output_rms_k: f64,
+    sample_count: u32,
+    lag_tau_s: f64,
+    true_tau_s: f64,
+    max_lag_k: f64,
+    ambient_k: f64,
+    heater_k: f64,
+}
+
+#[wasm_bindgen]
+impl ThermalTwinOutput {
+    #[wasm_bindgen(getter)]
+    pub fn time_s(&self) -> Vec<f64> {
+        self.time_s.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn plate_k(&self) -> Vec<f64> {
+        self.plate_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn junction_k(&self) -> Vec<f64> {
+        self.junction_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn sensor_k(&self) -> Vec<f64> {
+        self.sensor_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn observed_k(&self) -> Vec<f64> {
+        self.observed_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn ukf_junction_k(&self) -> Vec<f64> {
+        self.ukf_junction_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn rts_junction_k(&self) -> Vec<f64> {
+        self.rts_junction_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn rts_sensor_k(&self) -> Vec<f64> {
+        self.rts_sensor_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn rts_sd_k(&self) -> Vec<f64> {
+        self.rts_sd_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn gp_mean_k(&self) -> Vec<f64> {
+        self.gp_mean_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn gp_sd_k(&self) -> Vec<f64> {
+        self.gp_sd_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn matern_mean_k(&self) -> Vec<f64> {
+        self.matern_mean_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn matern_sd_k(&self) -> Vec<f64> {
+        self.matern_sd_k.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn matern_rms_k(&self) -> f64 {
+        self.matern_rms_k
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn matern_length_scale_s(&self) -> f64 {
+        self.matern_length_scale_s
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn matern_signal_sd_k(&self) -> f64 {
+        self.matern_signal_sd_k
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn matern_coverage_95(&self) -> f64 {
+        self.matern_coverage_95
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn matern_at_grid_edge(&self) -> bool {
+        self.matern_at_grid_edge
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn junction_rmse_k(&self) -> f64 {
+        self.junction_rmse_k
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn sensor_rmse_k(&self) -> f64 {
+        self.sensor_rmse_k
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn gp_rms_k(&self) -> f64 {
+        self.gp_rms_k
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn kalman_log_likelihood(&self) -> f64 {
+        self.kalman_log_likelihood
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn dmd_tau_s(&self) -> Vec<f64> {
+        self.dmd_tau_s.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn dmd_tau_low_s(&self) -> Vec<f64> {
+        self.dmd_tau_low_s.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn dmd_tau_high_s(&self) -> Vec<f64> {
+        self.dmd_tau_high_s.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn dmd_bootstrap_replicates(&self) -> u32 {
+        self.dmd_bootstrap_replicates
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn dmd_frequency_rad_s(&self) -> Vec<f64> {
+        self.dmd_frequency_rad_s.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn dmd_relative_residual(&self) -> f64 {
+        self.dmd_relative_residual
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn dmd_max_relative_error(&self) -> f64 {
+        self.dmd_max_relative_error
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn greybox_tau_s(&self) -> Vec<f64> {
+        self.greybox_tau_s.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn greybox_tau_low_s(&self) -> Vec<f64> {
+        self.greybox_tau_low_s.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn greybox_tau_high_s(&self) -> Vec<f64> {
+        self.greybox_tau_high_s.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn greybox_bootstrap_replicates(&self) -> u32 {
+        self.greybox_bootstrap_replicates
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn greybox_max_relative_error(&self) -> f64 {
+        self.greybox_max_relative_error
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn greybox_output_rms_k(&self) -> f64 {
+        self.greybox_output_rms_k
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn sample_count(&self) -> u32 {
+        self.sample_count
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn lag_tau_s(&self) -> f64 {
+        self.lag_tau_s
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn true_tau_s(&self) -> f64 {
+        self.true_tau_s
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn max_lag_k(&self) -> f64 {
+        self.max_lag_k
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn ambient_k(&self) -> f64 {
+        self.ambient_k
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn heater_k(&self) -> f64 {
+        self.heater_k
+    }
+}
+
+fn run_thermal_twin_impl(seed: u32) -> Result<ThermalTwinOutput, String> {
+    let config = ThermalConfig {
+        seed: u64::from(seed),
+        ..ThermalConfig::default()
+    };
+    let run = simulate_thermal(&config)?;
+    let estimate = smooth_thermal(&config, &run)?;
+    let modes = estimate_thermal_modes(&config, &run.time_s, &run.observed_k)?;
+    let greybox = fit_output_error(&config, &run.time_s, &run.observed_k)?;
+    Ok(ThermalTwinOutput {
+        sample_count: run.time_s.len() as u32,
+        time_s: run.time_s,
+        plate_k: run.plate_k,
+        junction_k: run.junction_k,
+        sensor_k: run.sensor_k,
+        observed_k: run.observed_k,
+        ukf_junction_k: estimate.filtered_junction_k,
+        rts_junction_k: estimate.smoothed_junction_k,
+        rts_sensor_k: estimate.smoothed_sensor_k,
+        rts_sd_k: estimate.smoothed_junction_sd_k,
+        gp_mean_k: estimate.gp_mean_k,
+        gp_sd_k: estimate.gp_sd_k,
+        matern_mean_k: estimate.matern_mean_k,
+        matern_sd_k: estimate.matern_sd_k,
+        matern_rms_k: estimate.matern_rms_k,
+        matern_length_scale_s: estimate.matern_length_scale_s,
+        matern_signal_sd_k: estimate.matern_signal_sd_k,
+        matern_coverage_95: estimate.matern_coverage_95,
+        matern_at_grid_edge: estimate.matern_at_grid_edge,
+        junction_rmse_k: estimate.junction_rmse_k,
+        sensor_rmse_k: estimate.sensor_rmse_k,
+        gp_rms_k: estimate.gp_rms_k,
+        kalman_log_likelihood: estimate.log_likelihood,
+        dmd_tau_s: modes.time_constants_s,
+        dmd_tau_low_s: modes.time_constant_low_s,
+        dmd_tau_high_s: modes.time_constant_high_s,
+        dmd_bootstrap_replicates: modes.bootstrap_replicates as u32,
+        dmd_frequency_rad_s: modes.frequencies_rad_s,
+        dmd_relative_residual: modes.relative_residual,
+        dmd_max_relative_error: modes.max_relative_error,
+        greybox_tau_s: greybox.time_constants_s,
+        greybox_tau_low_s: greybox.time_constant_low_s,
+        greybox_tau_high_s: greybox.time_constant_high_s,
+        greybox_bootstrap_replicates: greybox.bootstrap_replicates as u32,
+        greybox_max_relative_error: greybox.max_relative_error,
+        greybox_output_rms_k: greybox.output_rms_k,
+        lag_tau_s: run.lag_tau_s,
+        true_tau_s: run.true_tau_s,
+        max_lag_k: run.max_lag_k,
+        ambient_k: run.ambient_k,
+        heater_k: run.heater_k,
+    })
+}
+
+/// Run the synthetic thermal twin. The returned series and recovered lag are
+/// computed in Rust; the page only draws them.
+#[wasm_bindgen]
+pub fn run_thermal_twin(seed: u32) -> Result<ThermalTwinOutput, JsValue> {
+    run_thermal_twin_impl(seed).map_err(|error| JsValue::from_str(&error))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1608,6 +1927,53 @@ mod tests {
             .all(|value| value.is_finite()));
         assert!(output.w2_distance().is_finite());
         assert!(output.w2_bootstrap_se().is_finite());
+    }
+
+    #[test]
+    fn thermal_twin_returns_a_lagged_series() {
+        let output = run_thermal_twin_impl(7).expect("thermal twin");
+        assert_eq!(output.sample_count(), 181);
+        assert_eq!(output.time_s().len(), 181);
+        assert_eq!(output.observed_k().len(), 181);
+        assert!(output.max_lag_k() > 0.0);
+        assert!((output.lag_tau_s() - output.true_tau_s()).abs() < 0.5);
+        assert_eq!(output.rts_junction_k().len(), 181);
+        assert_eq!(output.rts_sd_k().len(), 181);
+        assert_eq!(output.gp_sd_k().len(), 181);
+        assert_eq!(output.matern_mean_k().len(), 181);
+        assert_eq!(output.matern_sd_k().len(), 181);
+        assert_eq!(output.rts_sensor_k().len(), 181);
+        assert!(output.matern_rms_k().is_finite() && output.matern_rms_k() >= 0.0);
+        assert!(output.matern_length_scale_s() > 0.0);
+        assert!(output.matern_signal_sd_k() > 0.0);
+        assert!((0.0..=1.0).contains(&output.matern_coverage_95()));
+        assert!(output.junction_rmse_k() < 0.1);
+        assert!(output.gp_rms_k().is_finite());
+        assert!(output.kalman_log_likelihood().is_finite());
+        assert_eq!(output.dmd_tau_s().len(), 3);
+        assert_eq!(output.dmd_tau_low_s().len(), 3);
+        assert_eq!(output.dmd_tau_high_s().len(), 3);
+        assert!(output.dmd_bootstrap_replicates() >= 32);
+        assert_eq!(output.dmd_frequency_rad_s().len(), 3);
+        assert!(output.dmd_tau_s().iter().all(|tau| *tau > 0.0));
+        assert!(output.dmd_max_relative_error() < 0.2);
+        assert!(output.dmd_relative_residual() < 0.1);
+        assert_eq!(output.greybox_tau_s().len(), 3);
+        assert_eq!(output.greybox_tau_low_s().len(), 3);
+        assert_eq!(output.greybox_tau_high_s().len(), 3);
+        assert!(output.greybox_bootstrap_replicates() >= 32);
+        assert!(output.greybox_tau_s().iter().all(|tau| *tau > 0.0));
+        for ((low, high), tau) in output
+            .greybox_tau_low_s()
+            .iter()
+            .zip(output.greybox_tau_high_s())
+            .zip(output.greybox_tau_s())
+        {
+            assert!(low.is_finite() && high.is_finite());
+            assert!(*low <= tau && tau <= high);
+        }
+        assert!(output.greybox_max_relative_error() < 0.05);
+        assert!(output.greybox_output_rms_k() < 0.1);
     }
 
     #[test]

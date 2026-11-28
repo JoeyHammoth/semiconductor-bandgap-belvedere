@@ -116,6 +116,63 @@ Prior sensitivity is a first-class output: every ledger entry carries a flag, an
 
 Voltage residuals are modelled as Gaussian with an instrument-derived scale plus an optional GP discrepancy term. When the latent-temperature model (M5) is active, the likelihood is the Kalman filter marginal likelihood over the thermal state, not a plug-in temperature.
 
+### 6.1 First M5 implementation slice
+
+The first Phase 4 slice is a deterministic synthetic chain:
+
+```
+T_plate    -> first-order response to heater/ambient
+T_junction -> first-order response to T_plate
+T_sensor   -> first-order response to T_junction
+```
+
+Each link uses the exact first-order factor `1 − exp(−Δt/τ)`. The synthetic sensor series adds
+seeded Gaussian noise. The S6 page reports the configured time constants and a lag estimate from
+the latent junction/sensor series.
+
+The heater follows an ordered schedule of on-intervals (`heat_pulses`), not a single step: 90 s at
+60 s, 300 s at 300 s and 720 s at 780 s of an 1800 s run at 10 s samples. The narrow first pulse
+puts energy at the sensor's own timescale and the long third pulse drives the plate towards steady
+state. Forward twin, filter and DMDc all read the same `heater_target_k`, and pulses must be
+ordered and non-overlapping.
+
+The same slice now runs a three-state UKF with state `[plate, junction, sensor]` and the noisy
+sensor as its only measurement, followed by an RTS smoother over the full trace. It also fits a
+Gaussian process with fixed RBF hyperparameters to the post-smoother sensor residual. That GP is a
+diagnostic; the same residual is additionally carried as a latent Matérn-3/2 state — a two-state
+linear SDE with exact discretisation, a Kalman filter and an RTS smoother — so the discrepancy is a
+state of the model, not only a kernel fit ([ADR 0011](adr/0011-multi-pulse-schedule-and-matern-state.md)).
+Its length and signal scales are not fixed: a Jeffreys hyperprior is placed over an 8 × 6 grid
+(60–720 s, 0.005–0.16 K), the marginal likelihood is evaluated per grid point, and the reported
+state is the moment-matched mixture ([ADR 0012](adr/0012-dmdc-noise-sensitivity-and-matern-hyperprior.md)).
+On the default run that gives a 163 s length scale, a 5.2 mK signal scale at the grid floor and
+95.6% coverage of the residual by the 95% predictive band, i.e. the post-smoother residual is
+consistent with white sensor noise.
+
+The filter also reports its own predictive log-likelihood: the sum of the Gaussian log densities of
+the observations under the unscented predicted measurement. That is the Kalman prediction-error
+decomposition for the configured model and noise level, not evidence over parameters.
+
+A Hankel-DMDc fit identifies damping constants from the delay-embedded observed sensor and the
+known heater input: order 4, three control lags, QR least squares on the centred series, companion
+eigenvalues by Durand–Kerner, then `τ = −Δt / ln|λ|`. The three slowest distinct modes are shown
+with their fit residual and their maximum relative error against the chain's configured constants:
+433/74/29 s against 420/75/25 s on the default seed, so the slow and middle poles land within a few
+percent and the fastest stays about 16% long because observation noise whitens it. The fit residual
+includes the control terms. The regression stays ordinary least squares: two-stage and total least
+squares were both measured and both were worse, and a noiseless trace is recovered to 1e-7
+([ADR 0012](adr/0012-dmdc-noise-sensitivity-and-matern-hyperprior.md)). Each mode is reported with
+a 5–95% band from 64 parametric-bootstrap refits of the fitted model; the heater amplitude was swept
+and is not the limiting factor ([ADR 0013](adr/0013-dmdc-modal-bands.md)). That band is conditional on
+one trace: it is 2.2–6.7× wider than the seed-to-seed spread, so it is a sensitivity band rather than
+a cross-trace interval. A grey-box output-error fit of the same chain, which assumes the structure
+instead of identifying it, recovers the fastest pole to 2.9% worst case against 34.8% for the blind
+fit, which locates the residual error in the errors-in-variables bias. Its 5–95% band comes from 64
+residual-bootstrap refits and is conditional on the structure; it contains the configured constant
+in 13 of 15 seed × mode cases ([ADR 0014](adr/0014-greybox-and-dmdc-band-meaning.md)). See
+[ADR 0010](adr/0010-dmdc-and-marginal-likelihood.md) and
+[ADR 0011](adr/0011-multi-pulse-schedule-and-matern-state.md).
+
 ## 7. Identifiability
 
 `E_g`, `ln B` and `η` are nearly collinear over the lab's 60–100 K window around room temperature. The Fisher spectrum (design §3.1) quantifies this; the app's job is to show it rather than to hide it behind a straight-line fit. Any claim that a wider temperature range would "fix" the gap must be demonstrated with the temperature-range slider before it appears in copy.

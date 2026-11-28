@@ -1,5 +1,34 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Broad-prior M0 NPE experiments (affine and rational-quadratic spline) recorded as failed calibrations; the verified local v0.1.0 artifact is retained.
+- First Phase 4 thermal-twin slice: deterministic plate/junction/sensor chain, WASM export and `/thermal/` S6 scene.
+- S6 UKF/RTS state estimate with uncertainty band and fixed-hyperparameter GP residual diagnostic.
+- S6 Kalman marginal likelihood and Hankel-DMDc time constants, with the fit residual and the modal error against the chain's configured constants.
+- Three-pulse heater schedule shared by the forward twin, the UKF and DMDc; the slow and middle modal errors fall from 12–15% to 1–3%.
+- S6 Matérn-3/2 latent discrepancy: a two-state linear SDE with exact discretisation, Kalman filter and RTS smoother, replacing the "future work" note for a state-space GP.
+- Jeffreys hyperprior over the Matérn length and signal scales, fitted on an 8 × 6 grid with a moment-matched mixture and a reported 95% predictive coverage (95.6% on the default run).
+- S6 residual strip plotting the post-smoother residual, the smoothed discrepancy and its 1σ band on a magnified axis.
+- DMDc 5–95% modal bands from 64 parametric-bootstrap refits of the fitted ARX model, shown beside each time constant on S6.
+- Grey-box output-error fit of the thermal chain (Levenberg–Marquardt on log time constants and the initial temperature), shown beside DMDc on S6 as a cross-check that separates the blind fit's errors-in-variables bias from the chain itself.
+- 5–95% grey-box modal bands from 64 residual-bootstrap refits; the configured constant falls inside 13 of 15 seed × mode bands.
+- S6 mode ladder under the plot draws both estimators' time constants and bands on a log axis.
+- S6 accessible trace table now carries the RTS and Matérn 1σ columns drawn on the canvas.
+
+### Changed
+
+- DMDc keeps ordinary least squares: two-stage and total least squares were measured against it and both made the modal estimate worse; a new unit test pins the noise-free recovery.
+- Offline-navigation Playwright coverage for the PWA service worker.
+- The DMDc bootstrap band is documented as a single-trace sensitivity band: it is 2.2–6.7× wider than the seed-to-seed spread and is not a cross-trace confidence interval.
+
+### Fixed
+
+- Pin `@playwright/test` to 1.64.1 so the e2e suite stops hitting the Firefox 1572 content-process crash that follows an axe scan.
+- Guided-story keyboard test no longer races hydration before pressing an arrow key.
+
 ## v0.1.0 — 2026-11-26
 
 Phase 3 MVP: a calibrated local neural posterior, the Rust flow engine, an offline PWA shell and a guided story.

@@ -126,6 +126,59 @@ export interface NestedTraceResult {
   priorHigh: Float64Array;
 }
 
+export interface ThermalTwinRequest {
+  seed: number;
+}
+
+export interface ThermalTwinResult {
+  timeS: Float64Array;
+  plateK: Float64Array;
+  junctionK: Float64Array;
+  sensorK: Float64Array;
+  observedK: Float64Array;
+  ukfJunctionK: Float64Array;
+  rtsJunctionK: Float64Array;
+  /** RTS-smoothed sensor state, the reference for the residual. */
+  rtsSensorK: Float64Array;
+  rtsSdK: Float64Array;
+  gpMeanK: Float64Array;
+  gpSdK: Float64Array;
+  /** Post-smoother residual as a latent Matern-3/2 state. */
+  maternMeanK: Float64Array;
+  maternSdK: Float64Array;
+  maternRmsK: number;
+  maternLengthScaleS: number;
+  maternSignalSdK: number;
+  maternCoverage95: number;
+  maternAtGridEdge: boolean;
+  junctionRmseK: number;
+  sensorRmseK: number;
+  gpRmsK: number;
+  kalmanLogLikelihood: number;
+  dmdTauS: Float64Array;
+  /** 5th and 95th percentile of a parametric bootstrap, per mode. */
+  dmdTauLowS: Float64Array;
+  dmdTauHighS: Float64Array;
+  dmdBootstrapReplicates: number;
+  dmdFrequencyRadS: Float64Array;
+  dmdRelativeResidual: number;
+  dmdMaxRelativeError: number;
+  /** Time constants from a grey-box output-error fit of the same chain. */
+  greyboxTauS: Float64Array;
+  /** 5th and 95th percentile of a residual bootstrap, per mode. */
+  greyboxTauLowS: Float64Array;
+  greyboxTauHighS: Float64Array;
+  greyboxBootstrapReplicates: number;
+  greyboxMaxRelativeError: number;
+  greyboxOutputRmsK: number;
+  sampleCount: number;
+  lagTauS: number;
+  trueTauS: number;
+  maxLagK: number;
+  ambientK: number;
+  heaterK: number;
+}
+
 export interface NpeRequest {
   /** JSON architecture manifest for the frozen synthetic M0 flow. */
   manifestJson: string;
@@ -223,6 +276,7 @@ export type Request =
       reported: Float64Array;
     }
   | { id: number; kind: 'nested'; livePoints: number; seed: number }
+  | ({ id: number; kind: 'thermal' } & ThermalTwinRequest)
   | ({ id: number; kind: 'npe' } & NpeRequest)
   | ({ id: number; kind: 'svgd' } & SvgdComparisonRequest);
 
@@ -235,6 +289,7 @@ export type Response =
   | { id: number; ok: true; kind: 'diagnostics'; value: DiagnosticsResult }
   | { id: number; ok: true; kind: 'fisher'; value: FisherResult }
   | { id: number; ok: true; kind: 'nested'; value: NestedTraceResult }
+  | { id: number; ok: true; kind: 'thermal'; value: ThermalTwinResult }
   | { id: number; ok: true; kind: 'npe'; value: NpeResult }
   | { id: number; ok: true; kind: 'svgd'; value: SvgdComparisonResult }
   | { id: number; ok: false; error: string };
@@ -313,6 +368,51 @@ export interface WasmNestedTraceOutput {
   readonly live_positions: Float64Array;
   readonly prior_low: Float64Array;
   readonly prior_high: Float64Array;
+  free: () => void;
+}
+
+export interface WasmThermalTwinOutput {
+  readonly time_s: Float64Array;
+  readonly plate_k: Float64Array;
+  readonly junction_k: Float64Array;
+  readonly sensor_k: Float64Array;
+  readonly observed_k: Float64Array;
+  readonly ukf_junction_k: Float64Array;
+  readonly rts_junction_k: Float64Array;
+  readonly rts_sensor_k: Float64Array;
+  readonly rts_sd_k: Float64Array;
+  readonly gp_mean_k: Float64Array;
+  readonly gp_sd_k: Float64Array;
+  readonly matern_mean_k: Float64Array;
+  readonly matern_sd_k: Float64Array;
+  readonly matern_rms_k: number;
+  readonly matern_length_scale_s: number;
+  readonly matern_signal_sd_k: number;
+  readonly matern_coverage_95: number;
+  readonly matern_at_grid_edge: boolean;
+  readonly junction_rmse_k: number;
+  readonly sensor_rmse_k: number;
+  readonly gp_rms_k: number;
+  readonly kalman_log_likelihood: number;
+  readonly dmd_tau_s: Float64Array;
+  readonly dmd_tau_low_s: Float64Array;
+  readonly dmd_tau_high_s: Float64Array;
+  readonly dmd_bootstrap_replicates: number;
+  readonly dmd_frequency_rad_s: Float64Array;
+  readonly dmd_relative_residual: number;
+  readonly dmd_max_relative_error: number;
+  readonly greybox_tau_s: Float64Array;
+  readonly greybox_tau_low_s: Float64Array;
+  readonly greybox_tau_high_s: Float64Array;
+  readonly greybox_bootstrap_replicates: number;
+  readonly greybox_max_relative_error: number;
+  readonly greybox_output_rms_k: number;
+  readonly sample_count: number;
+  readonly lag_tau_s: number;
+  readonly true_tau_s: number;
+  readonly max_lag_k: number;
+  readonly ambient_k: number;
+  readonly heater_k: number;
   free: () => void;
 }
 
@@ -410,6 +510,7 @@ export interface CoreModule {
     reported: Float64Array,
   ) => WasmFisherOutput;
   run_nested_gaussian: (livePoints: number, seed: number) => WasmNestedTraceOutput;
+  run_thermal_twin: (seed: number) => WasmThermalTwinOutput;
   run_npe: (
     manifestJson: string,
     weights: Uint8Array,

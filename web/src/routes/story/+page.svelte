@@ -34,6 +34,12 @@
       label: 'Open the instant posterior',
     },
     {
+      title: 'Twin the sensor',
+      copy: 'The plate, junction and sensor do not heat together. The first Phase 4 slice makes their lag explicit and recovers the sensor time constant from the synthetic series.',
+      href: '../thermal/',
+      label: 'Open the thermal twin',
+    },
+    {
       title: 'Read the ledger, then decide',
       copy: 'Evidence, LOO and prior sensitivity sit together. Disagreement is shown, not averaged away; the lost recordings remain unavailable.',
       href: '../ledger/',

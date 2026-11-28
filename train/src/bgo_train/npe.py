@@ -18,7 +18,7 @@ import argparse
 import hashlib
 import json
 import math
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any
 
@@ -41,13 +41,6 @@ CALIBRATION_JSON = ROOT / "web" / "static" / "data" / "npe-calibration.json"
 GOLDEN_JSON = ROOT / "crates" / "bgo-nn" / "tests" / "references" / "m0-flow-golden.json"
 
 PARAMETER_NAMES = ["eg_ev", "ln_b"]
-# The M0 NPE is explicitly local to the report-anchored synthetic case. The
-# broad M0 prior is used by MCLMC; an amortised model trained over the full
-# prior would need far more simulations and cannot claim calibration here.
-PARAMETER_CENTER = np.array([1.002, 5.504239846], dtype=np.float64)
-PARAMETER_SCALE = np.array([0.02, 0.2], dtype=np.float64)
-PRIOR_LOW = np.array([0.90, 4.5], dtype=np.float64)
-PRIOR_HIGH = np.array([1.10, 6.5], dtype=np.float64)
 
 
 @dataclass(frozen=True)
@@ -63,6 +56,12 @@ class NpeConfig:
     layers: int = 6
     bins: int = 12
     bound: float = 4.0
+    prior_center: tuple[float, float] = (1.002, 5.504239846)
+    prior_scale: tuple[float, float] = (0.02, 0.2)
+    prior_low: tuple[float, float] = (0.90, 4.5)
+    prior_high: tuple[float, float] = (1.10, 6.5)
+    prior_scope: str = "local report-anchored M0"
+    note: str = "Synthetic local M0. The original measurements do not exist (ADR 0006)."
     sbc_simulations: int = 1_000
     posterior_samples: int = 100
     tarp_alphas: tuple[float, ...] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
@@ -307,11 +306,15 @@ def _adam(
     return params, final_loss
 
 
-def _draw_prior(key: jax.Array, count: int) -> jax.Array:
+def _draw_prior(key: jax.Array, count: int, config: NpeConfig) -> jax.Array:
     key1, key2 = jax.random.split(key)
-    eg = jax.random.normal(key1, (count,), dtype=jnp.float64) * PARAMETER_SCALE[0] + PARAMETER_CENTER[0]
-    ln_b = jax.random.normal(key2, (count,), dtype=jnp.float64) * PARAMETER_SCALE[1] + PARAMETER_CENTER[1]
-    return jnp.stack([jnp.clip(eg, PRIOR_LOW[0], PRIOR_HIGH[0]), jnp.clip(ln_b, PRIOR_LOW[1], PRIOR_HIGH[1])], axis=1)
+    center = np.asarray(config.prior_center, dtype=np.float64)
+    scale = np.asarray(config.prior_scale, dtype=np.float64)
+    low = np.asarray(config.prior_low, dtype=np.float64)
+    high = np.asarray(config.prior_high, dtype=np.float64)
+    eg = jax.random.normal(key1, (count,), dtype=jnp.float64) * scale[0] + center[0]
+    ln_b = jax.random.normal(key2, (count,), dtype=jnp.float64) * scale[1] + center[1]
+    return jnp.stack([jnp.clip(eg, low[0], high[0]), jnp.clip(ln_b, low[1], high[1])], axis=1)
 
 
 def _simulate(
@@ -398,7 +401,7 @@ def train(config: NpeConfig) -> dict[str, Any]:
     key = jax.random.PRNGKey(config.seed)
     key, prior_key, noise_key, init_key = jax.random.split(key, 4)
     total = config.simulations
-    theta = _draw_prior(prior_key, total)
+    theta = _draw_prior(prior_key, total, config)
     observations = _simulate(noise_key, theta, case)
     # A five-number design-aware summary is the conditioning input. The design
     # explicitly permits summary statistics, and this avoids asking a small
@@ -416,8 +419,10 @@ def train(config: NpeConfig) -> dict[str, Any]:
     condition_scale = np.where(condition_scale > 1.0e-12, condition_scale, 1.0)
     train_conditions = _standardise(train_conditions_raw, condition_mean, condition_scale)
     validation_conditions = _standardise(validation_conditions_raw, condition_mean, condition_scale)
-    train_targets = _standardise(train_targets_raw, PARAMETER_CENTER, PARAMETER_SCALE)
-    validation_targets = _standardise(validation_targets_raw, PARAMETER_CENTER, PARAMETER_SCALE)
+    parameter_center = np.asarray(config.prior_center, dtype=np.float64)
+    parameter_scale = np.asarray(config.prior_scale, dtype=np.float64)
+    train_targets = _standardise(train_targets_raw, parameter_center, parameter_scale)
+    validation_targets = _standardise(validation_targets_raw, parameter_center, parameter_scale)
 
     params = _init_params(init_key, config, conditions.shape[1])
     params, final_loss = _adam(
@@ -452,9 +457,9 @@ def train(config: NpeConfig) -> dict[str, Any]:
         "training_framework": "jax",
         "model": "M0",
         "parameter_names": PARAMETER_NAMES,
-        "prior_scope": "local report-anchored M0",
-        "prior_low": PRIOR_LOW.tolist(),
-        "prior_high": PRIOR_HIGH.tolist(),
+        "prior_scope": config.prior_scope,
+        "prior_low": list(config.prior_low),
+        "prior_high": list(config.prior_high),
         "condition_dim": int(conditions.shape[1]),
         "parameter_dim": 2,
         "hidden_dim": config.hidden_dim,
@@ -462,8 +467,8 @@ def train(config: NpeConfig) -> dict[str, Any]:
         "bins": config.bins,
         "bound": config.bound,
         "layer_split": [index % 2 for index in range(config.layers)],
-        "parameter_center": PARAMETER_CENTER.tolist(),
-        "parameter_scale": PARAMETER_SCALE.tolist(),
+        "parameter_center": list(config.prior_center),
+        "parameter_scale": list(config.prior_scale),
         "condition_mean": condition_mean.tolist(),
         "condition_scale": condition_scale.tolist(),
         "ood_summary_mean": ood_summary_mean.tolist(),
@@ -566,7 +571,7 @@ def calibrate(
     case = load_config(CASE_CONFIG)
     key = jax.random.PRNGKey(config.seed + 17)
     key, prior_key, noise_key, sample_key = jax.random.split(key, 4)
-    theta = _draw_prior(prior_key, config.sbc_simulations)
+    theta = _draw_prior(prior_key, config.sbc_simulations, config)
     observations = _simulate(noise_key, theta, case)
     conditions = _standardise(_summaries(np.asarray(observations)), condition_mean, condition_scale)
     samples = _sample(
@@ -577,7 +582,11 @@ def calibrate(
         config,
     )
     samples = np.asarray(samples, dtype=np.float64)
-    truth = _standardise(np.asarray(theta), PARAMETER_CENTER, PARAMETER_SCALE)
+    truth = _standardise(
+        np.asarray(theta),
+        np.asarray(config.prior_center, dtype=np.float64),
+        np.asarray(config.prior_scale, dtype=np.float64),
+    )
     ranks = (samples < truth[:, None, :]).sum(axis=1)
     bins = 10
     rank_bins = np.minimum((ranks * bins // config.posterior_samples), bins - 1)
@@ -604,7 +613,7 @@ def calibrate(
         coverages.append({"nominal": alpha, "empirical": empirical, "deviation": deviation})
 
     ood_key, ood_noise_key = jax.random.split(key)
-    ood_theta = _draw_prior(ood_key, config.ood_simulations)
+    ood_theta = _draw_prior(ood_key, config.ood_simulations, config)
     # Change both the parameter region and the measurement design. This is an
     # OOD probe, not a claim about a real instrument.
     ood_theta = ood_theta.at[:, 0].set(np.linspace(1.30, 1.45, config.ood_simulations))
@@ -662,8 +671,8 @@ def calibrate(
             "fpr_target": 0.02,
         },
         "parameter_names": PARAMETER_NAMES,
-        "note": "Synthetic M0 local to the report-anchored case. The original measurements do not exist (ADR 0006).",
-        "prior_scope": "local report-anchored M0",
+        "note": config.note,
+        "prior_scope": config.prior_scope,
     }
     return report, int(samples.shape[0] * samples.shape[1])
 
@@ -705,14 +714,34 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--all", action="store_true", help="train, export and calibrate")
     parser.add_argument("--check", action="store_true", help="verify committed artifacts")
+    parser.add_argument("--prior", choices=("local", "broad"), default="local")
+    parser.add_argument("--flow", choices=("affine", "spline"), default="affine")
+    parser.add_argument("--simulations", type=int)
+    parser.add_argument("--steps", type=int)
+    parser.add_argument("--layers", type=int)
+    parser.add_argument("--hidden", type=int)
     args = parser.parse_args()
     if args.check:
         check()
         return
     if not args.all:
         parser.error("choose --all or --check")
-    config = NpeConfig()
-    print("training synthetic M0 conditional spline flow")
+    overrides: dict[str, Any] = {"flow_kind": args.flow}
+    for name in ("simulations", "steps", "layers", "hidden_dim"):
+        value = getattr(args, name.removesuffix("_dim"))
+        if value is not None:
+            overrides[name] = value
+    if args.prior == "broad":
+        overrides.update(
+            prior_center=(0.9, 8.0),
+            prior_scale=(0.35, 8.0),
+            prior_low=(0.05, -30.0),
+            prior_high=(3.5, 30.0),
+            prior_scope="broad M0 prior; ln B training support [-30, 30]",
+            note="Synthetic broad-prior M0. The original measurements do not exist (ADR 0006).",
+        )
+    config = replace(NpeConfig(), **overrides)
+    print(f"training synthetic {config.prior_scope} conditional {config.flow_kind} flow")
     print(json.dumps(asdict(config), indent=2))
     result = train(config)
     print(json.dumps(result, indent=2))

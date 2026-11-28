@@ -50,6 +50,8 @@ Phase 1 validation is simulation-only. The original recordings were lost (ADR 00
 
 The S5 NPE is a **local, report-anchored M0 amortised model**, not a calibrated surrogate for the full broad M0 prior. Its committed SBC/TARP/OOD report only certifies the local prior box `E_g ∈ [0.90, 1.10] eV`, `ln B ∈ [4.5, 6.5]`; outside it the OOD gate must reject the input. This limitation is visible on the page and is not hidden by the calibration badge.
 
+A full-prior retrain was attempted on 2026-11-26 with the MCLMC prior (`E_g ∈ [0.05, 3.5]`, `ln B ~ Normal(8, 8)` clipped to `[−30, 30]`), 80,000 simulations and 12,000 steps. It **failed** the gate: SBC p-values were 0.054 and 3.6e-11, TARP passed at 0.023, and OOD TPR was 0.00. A second retry on 2026-11-27 used a 6-layer rational-quadratic spline flow (80,000 simulations, 8,000 steps, 59,250 weights); it also failed, with SBC p-values 3.3e-50 and 6.6e-10, TARP 0.023, and OOD TPR 0.00. Neither artifact was committed; the local verified model remains the shipped NPE. The experiments are recorded here so the broad-prior claim is not resurrected by a weaker test.
+
 Nested sampling replaces a live point with a draw from the **uniform prior restricted to the likelihood threshold**, not from the likelihood-weighted posterior. The fixed-threshold tests check that this draw preserves uniform constrained means; the integration test checks the closed-form 2D Gaussian, the committed dynesty run and replicate scatter together.
 
 Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff: `--compare` accepts ordinary MCMC scatter when means and quantiles shift by at most 0.05 sd, standard deviations by at most 10%, and correlations by at most 0.02. Engine or config changes, failed diagnostics or larger shifts still fail the scheduled workflow. This does not relax the sampler-parity acceptance criteria.
@@ -81,7 +83,7 @@ Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff
 |---|---|---|---|
 | UKF matches analytic Kalman filter | linear Gaussian model | ≤ 1e-8 | pending |
 | RTS smoothing improves RMSE | simulated latent state | strictly lower RMSE | pending |
-| DMDc recovers simulated eigenvalues | known plant | ≤ 1% on |λ| | pending |
+| DMDc recovers simulated eigenvalues on a known plant with noiseless output | synthetic ARX fixture | ≤ 1% on |λ| | pending |
 | Si/Ge band edges match literature EPM | committed reference table | ≤ 0.1 eV, ordering exact | pending |
 | DOS is normalised and converged | k-point refinement | integral drift ≤ 1% | pending |
 
@@ -110,8 +112,29 @@ Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff
 | `/ledger` has no serious axe violations | Playwright + axe-core on `/ledger/` | zero serious/critical | verified (Chromium e2e + a11y) |
 | `/npe` runs the frozen local M0 flow and labels OOD | Playwright Chromium `/npe/`; `data-testid="npe"`, `npe-ood`, accessible table | draws and passing calibration report visible; OOD state explicit | verified (Chromium e2e) |
 | `/npe` has no serious axe violations | Playwright + axe-core on `/npe/` | zero serious/critical | verified (Chromium e2e + a11y) |
-| Guided story is keyboard operable | Playwright `/story/`; ArrowLeft/ArrowRight | heading advances and returns | verified (Chromium e2e) |
+| Guided story is keyboard operable | Playwright `/story/`; ArrowLeft/ArrowRight, retried until hydration attaches the handler | heading advances and returns | verified (CI e2e; Chromium, Firefox, WebKit) |
 | PWA manifest and service worker are served | Playwright `/`; manifest link and `navigator.serviceWorker`; production build | manifest 200, worker registered under the configured base path | verified (Chromium e2e) |
+| PWA serves an offline navigation after activation | Playwright Chromium: wait for `serviceWorker.ready` and an active controller, `context.setOffline(true)`, fetch `/thermal/` through the worker | worker answers 200 with the cached S6 heading and run control while the network is disabled | verified (Chromium e2e) |
+| Thermal chain recovers the configured sensor lag | `cargo test -p bgo-ssm thermal::recovers_the_sensor_time_constant` | relative error ≤ 2% | verified (unit) |
+| UKF/RTS recovers the latent junction from the noisy sensor | `cargo test -p bgo-ssm ukf::tests::smoother_recovers_the_latent_junction` | smoothed junction RMSE ≤ 0.1 K | verified (unit) |
+| GP residual diagnostic is finite and non-negative | `cargo test -p bgo-ssm ukf::tests::gp_discrepancy_is_finite` | finite mean, finite non-negative standard deviation | verified (unit) |
+| Kalman marginal likelihood responds to a noise mismatch | `cargo test -p bgo-ssm ukf::tests::marginal_likelihood_penalises_a_mismatched_noise_level` | matched-noise score exceeds a 10× tighter filter by more than 10 nats | verified (unit) |
+| Hankel-DMDc recovers the chain's damping constants | `cargo test -p bgo-ssm dmd::tests::recovers_the_chain_time_constants` | three distinct positive modes, maximum relative error ≤ 18% of the configured constants (observed 15.5%), fit residual ≤ 5% (observed 0.96%) | verified (unit) |
+| Matérn-3/2 SDE discretisation is exact | `cargo test -p bgo-ssm matern::tests::discretisation_keeps_the_stationary_covariance` | stationary covariance is a fixed point to ≤ 1e-12, zero-lag autocovariance equals `σ²` | verified (unit) |
+| Matérn-3/2 latent discrepancy recovers a smooth residual | `cargo test -p bgo-ssm matern::tests::smoother_recovers_a_smooth_residual` | smoothed RMSE ≤ 0.06 K on a 0.6 K sinusoid with 0.02 K noise | verified (unit) |
+| Matérn hyperprior recovers a smooth component | `cargo test -p bgo-ssm matern::tests::posterior_fits_and_covers_a_smooth_component` | fitted signal scale above the grid floor, smoothed RMSE ≤ 0.08 K on a 0.4 K sinusoid, 95% predictive coverage ≥ 0.85 | verified (unit) |
+| Matérn posterior is calibrated on a white residual | `cargo test -p bgo-ssm matern::tests::posterior_is_calibrated_on_a_white_residual` | 95% predictive coverage ≥ 0.90, smoothed discrepancy RMS ≤ 0.02 K on a 0.04 K white series | verified (unit) |
+| DMDc has no structural bias without measurement noise | `cargo test -p bgo-ssm dmd::tests::recovers_the_chain_exactly_without_measurement_noise` | maximum relative error ≤ 1e-6 on a noise-free trace | verified (unit) |
+| DMDc modal bands bracket the point estimate | `cargo test -p bgo-ssm dmd::tests::bootstrap_interval_brackets_the_point_estimate` | ≥ 32 of 64 replicates recover a model; every 5–95% band contains its point estimate and is narrower than 4× (observed 433 s: 365–527, 74 s: 57–98, 29 s: 23–39) | verified (unit) |
+| DMDc band is not narrower than the seed-to-seed spread | `cargo test -p bgo-ssm dmd::tests::bootstrap_band_is_measured_against_the_seed_spread` | each mode's across-seed span ≤ 3× the median 5–95% band (observed span/band 0.15, 0.42, 0.45) | verified (unit) |
+| Grey-box output-error fit recovers the chain's time constants | `cargo test -p bgo-ssm greybox::tests::recovers_the_chain_time_constants` | worst modal error ≤ 2% (observed 0.17%), output-error RMS ≤ 2× the sensor noise (observed 0.042 K) | verified (unit) |
+| Grey-box fit beats the blind DMDc fit on the fastest pole across seeds | `cargo test -p bgo-ssm greybox::tests::fastest_pole_beats_the_blind_estimate_across_seeds` | worst fastest-pole error ≤ 5% (observed 2.9%) and below the blind fit's worst (observed 34.8%) | verified (unit) |
+| Grey-box residual-bootstrap band brackets its point estimate and the truth | `cargo test -p bgo-ssm greybox::tests::bootstrap_band_brackets_the_point_estimate_and_the_truth` | ≥ 32 of 64 replicates converge; each 5–95% band contains the point estimate and the configured constant (observed 419.9–421.5, 73.8–76.3, 24.1–25.9) | verified (unit) |
+| Grey-box band covers the configured constants across seeds | `cargo test -p bgo-ssm greybox::tests::bands_cover_the_configured_constants_across_seeds` | ≥ 80% of the 15 seed × mode cases contain the configured constant (observed 13/15); widest band ≤ 60% of its point estimate (observed 8.7%) | verified (unit) |
+| Matérn band coverage holds across seeds | `cargo test -p bgo-ssm ukf::tests::matern_coverage_holds_across_seeds` | each of five seeds 0.90–1.00, mean 0.93–0.99 | verified (unit) |
+| S6 runs the Rust thermal twin and exposes RTS/GP outputs | Playwright Chromium `/thermal/`; `data-testid="thermal"`, `thermal-smoother`, `thermal-gp`, table | finite recovered lag, RTS/GP metrics, plot and accessible table | verified (Chromium e2e + a11y) |
+| S6 shows the filtered likelihood, the fitted Matérn discrepancy and the DMDc modes | Playwright `/thermal/`; `thermal-likelihood`, `thermal-matern`, `thermal-matern-fit`, `thermal-modes`, `thermal-greybox` | finite log-likelihood, positive fitted Matérn signal and length scales with 95% coverage between 0 and 1, three time constants with their bootstrap bands rendered next to the chain's constants, and three grey-box constants | verified (Chromium e2e + a11y) |
+| S6 accessible table carries the plotted uncertainty bands | Playwright `/thermal/`; `RTS 1σ (K)` and `Matérn 1σ (mK)` column headers | both bands drawn on the canvas have a table column and finite values | verified (Chromium e2e) |
 
 ## 8. How to run
 
@@ -130,6 +153,8 @@ cd train && uv run python -m bgo_train.reference --check
 cd train && uv run --with dynesty==3.2.0 python -m bgo_train.evidence
 cd train && uv run --with dynesty==3.2.0 python -m bgo_train.evidence --check
 ```
+
+`web/package.json` pins `@playwright/test` to 1.64.1. Playwright 1.65.0 and 1.65.1 ship Firefox build 1572, which segfaults in its content process when `ariaLabelledByElements` is read from both the page world and Playwright's isolated world — exactly what an `@axe-core/playwright` scan followed by a locator lookup does ([playwright#43967](https://github.com/microsoft/playwright/issues/43967)). The fix is in Firefox build 1575+, which reaches stable with Playwright 1.66; the pin can be lifted then, together with the `playwright-core` override that keeps axe and the runner on one Playwright type tree.
 
 Reference artifacts are regenerated by `.github/workflows/refs.yml` on a schedule or manually; a regression opens an issue with the diff attached. The evidence ledger is checked against a fresh regeneration by `.github/workflows/ledger.yml` on every pull request and main push, and monthly on the default branch.
 

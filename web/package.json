@@ -18,9 +18,12 @@
     "test:budget": "node --test ../scripts/size-budget.test.mjs",
     "format": "prettier --write ."
   },
+  "overrides": {
+    "playwright-core": "1.64.1"
+  },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
-    "@playwright/test": "^1.65.1",
+    "@playwright/test": "1.64.1",
     "@sveltejs/adapter-static": "^4.0.1",
     "@sveltejs/kit": "^3.3.1",
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

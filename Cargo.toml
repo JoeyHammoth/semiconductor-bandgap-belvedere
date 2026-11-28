@@ -25,6 +25,7 @@ bgo-infer = { path = "crates/bgo-infer" }
 bgo-info = { path = "crates/bgo-info" }
 bgo-ot = { path = "crates/bgo-ot" }
 bgo-physics = { path = "crates/bgo-physics" }
+bgo-ssm = { path = "crates/bgo-ssm" }
 libm = "0.2"
 
 [profile.release]

@@ -23,6 +23,6 @@ The page labels the model as local and synthetic, and does not present the passe
 ## Consequences
 
 - The local model passes SBC (p = 0.936, 0.998), TARP (max deviation 0.021) and OOD (TPR 1.00, FPR 0.01).
-- The thawed broad-prior NPE remains future work; MCLMC is still the reference for that claim.
+- The thawed broad-prior NPE remains future work; MCLMC is still the reference for that claim. A 2026-11-26 retrain over the full prior failed its SBC and OOD gates, as did a 2026-11-27 rational-quadratic spline retry, so neither was published (see `docs/validation.md`).
 - The spline implementation and tests stay in `bgo-nn` for later models.
 - Recalibration is required if the prior box, summary definitions, design or datasets change.
