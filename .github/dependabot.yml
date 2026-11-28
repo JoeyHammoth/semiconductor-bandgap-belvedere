@@ -19,6 +19,12 @@ updates:
     groups:
       web-dependencies:
         patterns: ["*"]
+    ignore:
+      # svelte-check 4.7.8 peers typescript ^5.0.0 || ^6.0.0, so a TS 7 bump
+      # makes `npm ci` fail with ERESOLVE. Drop this rule once svelte-check
+      # widens the range, and bump both together.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: pip
     directory: /train
