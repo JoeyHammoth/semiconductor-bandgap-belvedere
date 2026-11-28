@@ -62,6 +62,7 @@ Requirements: Node 24 ([`.nvmrc`](.nvmrc)), the Rust toolchain pinned in [`rust-
 | Browser and axe tests | `cd web && npm run e2e` |
 | Size budgets | `cd web && npm run build && cd .. && node scripts/size-budget.mjs` |
 | Contrast | `node scripts/contrast.mjs` |
+| Contrast self-test | `node --test scripts/contrast.test.mjs` |
 
 While iterating, one test is usually enough:
 

@@ -89,6 +89,8 @@ jobs:
         run: node scripts/hash-data.mjs --check
       - name: Accent contrast
         run: node scripts/contrast.mjs
+      - name: Contrast self-test
+        run: node --test scripts/contrast.test.mjs
       - name: Size budget self-test
         run: node --test scripts/size-budget.test.mjs
 

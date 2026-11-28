@@ -94,7 +94,7 @@ Reference refresh is a **tolerance-aware** comparison, not a byte-identical diff
 | Landing page has no serious axe violations | Playwright + axe-core | zero serious/critical | verified (CI) |
 | Lighthouse budgets hold | Lighthouse CI | thresholds in `lighthouserc.json` | verified (CI) |
 | Size budgets hold | `scripts/size-budget.mjs` + its negative self-test | design §8.6 table; oversized asset fails | verified (CI) |
-| Accent contrast holds | `scripts/contrast.mjs` in both themes | ≥ 4.5:1 for body text and links | verified (CI) |
+| Accent contrast holds | `scripts/contrast.mjs` in both themes + its negative self-test | ≥ 4.5:1 for body text and links; a low-contrast palette and a raw hex colour both fail | verified (CI) |
 | Permalinks round-trip | unit test | byte-identical state | verified (unit) |
 | Base-path routing works | Playwright against `vite preview` | all routes reachable | verified (CI) |
 | `/infer` serves the pinned synthetic M0 case | `web/src/lib/infer/case.test.ts`; SHA-256 and observation equality against `train/references/m0-report-si.json` | byte-pinned reference; no drift | verified (unit) |

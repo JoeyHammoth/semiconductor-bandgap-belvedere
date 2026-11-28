@@ -1,13 +1,31 @@
 #!/usr/bin/env node
 // Check the token palette's WCAG contrast for body text and links.
 // Reads web/src/lib/ui/tokens.css so the check cannot drift from the CSS.
+//
+// The helpers are exported so scripts/contrast.test.mjs can exercise the colour
+// maths directly. Run as a CLI it prints one line per pair and exits non-zero
+// when a pair fails or a component uses a raw hex colour.
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
-const css = readFileSync("web/src/lib/ui/tokens.css", "utf8");
-const THRESHOLD = 4.5;
+export const THRESHOLD = 4.5;
 
-function block(selector) {
+export const THEMES = [
+  { name: "darkroom", selector: ":root {" },
+  { name: "daylight", selector: ":root[data-theme='daylight']" },
+];
+
+export const PAIRS = [
+  ["ink", "bg"],
+  ["ink-dim", "bg"],
+  ["accent", "bg"],
+  ["accent", "surface"],
+];
+
+const TOKENS = ["bg", "surface", "ink", "ink-dim", "accent"];
+
+export function block(css, selector) {
   const start = css.indexOf(selector);
   if (start < 0) throw new Error(`selector not found: ${selector}`);
   const open = css.indexOf("{", start);
@@ -15,7 +33,7 @@ function block(selector) {
   return css.slice(open + 1, close);
 }
 
-function variable(source, name) {
+export function variable(source, name) {
   const line = source
     .split("\n")
     .find((candidate) => candidate.trim().startsWith(`--${name}:`));
@@ -32,7 +50,7 @@ function variable(source, name) {
   return { l, c, h };
 }
 
-function oklchToLinear({ l, c, h }) {
+export function oklchToLinear({ l, c, h }) {
   const hue = (h * Math.PI) / 180;
   const a = c * Math.cos(hue);
   const b = c * Math.sin(hue);
@@ -50,51 +68,46 @@ function oklchToLinear({ l, c, h }) {
   ];
 }
 
-function luminance(colour) {
+export function luminance(colour) {
   const [r, g, b] = oklchToLinear(colour);
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
-function ratio(a, b) {
+export function ratio(a, b) {
   const la = luminance(a);
   const lb = luminance(b);
   const [light, dark] = la > lb ? [la, lb] : [lb, la];
   return (light + 0.05) / (dark + 0.05);
 }
 
-const themes = [
-  { name: "darkroom", css: block(":root {") },
-  { name: "daylight", css: block(":root[data-theme='daylight']") },
-];
+// The five token colours declared by one theme.
+export function themeColours(css, selector) {
+  const source = block(css, selector);
+  const colours = {};
+  for (const token of TOKENS) colours[token] = variable(source, token);
+  return colours;
+}
 
-const pairs = [
-  ["ink", "bg"],
-  ["ink-dim", "bg"],
-  ["accent", "bg"],
-  ["accent", "surface"],
-];
-
-let failed = false;
-for (const theme of themes) {
-  const colours = {
-    bg: variable(theme.css, "bg"),
-    surface: variable(theme.css, "surface"),
-    ink: variable(theme.css, "ink"),
-    "ink-dim": variable(theme.css, "ink-dim"),
-    accent: variable(theme.css, "accent"),
-  };
-  for (const [fg, bg] of pairs) {
-    const value = ratio(colours[fg], colours[bg]);
-    const ok = value >= THRESHOLD;
-    failed ||= !ok;
-    console.log(
-      `${theme.name.padEnd(9)} ${`${fg} on ${bg}`.padEnd(18)} ${value.toFixed(2)}:1 ${ok ? "ok" : "FAIL"}`,
-    );
+// Every foreground/background pair in every theme, with its ratio and verdict.
+export function checkPalette(css, threshold = THRESHOLD) {
+  const rows = [];
+  for (const theme of THEMES) {
+    const colours = themeColours(css, theme.selector);
+    for (const [fg, bg] of PAIRS) {
+      const value = ratio(colours[fg], colours[bg]);
+      rows.push({ theme: theme.name, fg, bg, value, ok: value >= threshold });
+    }
   }
+  return { rows, failed: rows.some((row) => !row.ok) };
 }
 
 // Components must use tokens, never raw hex colours (issue #13).
-function svelteFiles(dir) {
+export function hexColours(source) {
+  const hex = /#[0-9a-fA-F]{3,8}(?![0-9a-zA-Z])/g;
+  return [...source.matchAll(hex)].map((match) => match[0]);
+}
+
+export function svelteFiles(dir) {
   const out = [];
   for (const entry of readdirSync(dir)) {
     const path = join(dir, entry);
@@ -104,17 +117,30 @@ function svelteFiles(dir) {
   return out;
 }
 
-const hexColour = /#[0-9a-fA-F]{3,8}(?![0-9a-zA-Z])/g;
-for (const file of svelteFiles("web/src")) {
-  const source = readFileSync(file, "utf8");
-  for (const match of source.matchAll(hexColour)) {
-    failed = true;
-    console.log(`${file}: raw hex colour ${match[0]}`);
+function main() {
+  const css = readFileSync("web/src/lib/ui/tokens.css", "utf8");
+  let failed = false;
+
+  for (const row of checkPalette(css).rows) {
+    failed ||= !row.ok;
+    console.log(
+      `${row.theme.padEnd(9)} ${`${row.fg} on ${row.bg}`.padEnd(18)} ${row.value.toFixed(2)}:1 ${row.ok ? "ok" : "FAIL"}`,
+    );
   }
+
+  for (const file of svelteFiles("web/src")) {
+    for (const hex of hexColours(readFileSync(file, "utf8"))) {
+      failed = true;
+      console.log(`${file}: raw hex colour ${hex}`);
+    }
+  }
+
+  if (failed) {
+    console.error(`contrast: FAILED (threshold ${THRESHOLD}:1; tokens only)`);
+    process.exit(1);
+  }
+  console.log(`contrast: passed (threshold ${THRESHOLD}:1; no raw hex colours)`);
 }
 
-if (failed) {
-  console.error(`contrast: FAILED (threshold ${THRESHOLD}:1; tokens only)`);
-  process.exit(1);
-}
-console.log(`contrast: passed (threshold ${THRESHOLD}:1; no raw hex colours)`);
+const invokedDirectly = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (invokedDirectly) main();
