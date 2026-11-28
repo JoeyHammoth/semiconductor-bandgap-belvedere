@@ -65,24 +65,27 @@ flowchart LR
 
 ## Quickstart
 
+Requires Node 24 and a Rust toolchain; the scenes also need `wasm-pack` 0.15.1.
+
 ```bash
+# Check the toolchains and install the web dependencies
+node scripts/setup.mjs          # add --check to report without changing anything
+
+# Build the WASM core every scene loads
+RUSTFLAGS="-C target-feature=+simd128" \
+  wasm-pack build crates/bgo-wasm --release --target web --out-dir ../../web/static/wasm
+
 # Web shell
 cd web
-npm ci
 npm run dev            # http://localhost:5173
 npm run check
 npm run build          # static output in web/build
 
 # Rust workspace
-rustup target add wasm32-unknown-unknown
 cargo test --workspace
-
-# Build the WASM core into the site
-RUSTFLAGS="-C target-feature=+simd128" \
-  wasm-pack build crates/bgo-wasm --release --target web --out-dir ../../web/static/wasm
 ```
 
-The Rust toolchain is not installed on every development machine; CI builds and tests the workspace regardless.
+Expected: `setup.mjs` prints one line per toolchain and exits 0, and `npm run dev` serves the S0 landing page. The Rust toolchain is not installed on every development machine; CI builds and tests the workspace regardless. [`CONTRIBUTING.md`](CONTRIBUTING.md) has the manual setup, the full check list and single-test commands.
 
 ## Repository map
 
@@ -153,7 +156,12 @@ The measured runs came from a PHYC30021 lab report, but the original logs no lon
 | [`docs/roadmap.md`](docs/roadmap.md) | phases, tasks, definition of done |
 | [`docs/adr/`](docs/adr/) | architectural decision records |
 | [`GLOSSARY.md`](GLOSSARY.md) | shared vocabulary |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md) | workflow and engineering rules |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | setup, checks, workflow and engineering rules |
+| [`SUPPORT.md`](SUPPORT.md) | where to ask for help, and what to expect |
+
+## Contributing
+
+Contributions are welcome: docs fixes, tests, accessibility work and small features. Start with a [`good first issue`](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues?q=is%3Aopen+label%3A%22good+first+issue%22) or a [`help wanted`](https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/issues?q=is%3Aopen+label%3A%22help+wanted%22) item, and read [`CONTRIBUTING.md`](CONTRIBUTING.md) for setup and the review rules. Questions go to [`SUPPORT.md`](SUPPORT.md); security reports go through [`SECURITY.md`](SECURITY.md), never a public issue.
 
 ## Licence
 

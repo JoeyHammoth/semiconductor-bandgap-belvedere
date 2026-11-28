@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Contributing and development setup
+    url: https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/CONTRIBUTING.md
+    about: How to build, test and open a pull request.
   - name: Design document
     url: https://github.com/JoeyHammoth/semiconductor-bandgap-belvedere/blob/main/source/bandgap-observatory-design.md
     about: The specification these issues implement.
