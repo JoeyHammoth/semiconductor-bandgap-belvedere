@@ -8,6 +8,7 @@
 .env
 .env.*
 !.env.example
+freebuff-chat-*.md
 
 # Dependencies
 node_modules/
